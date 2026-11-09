@@ -30,7 +30,8 @@ extension GroupService on LanService {
               port: m.port,
               platform: m.platform,
               capabilities: const ['lan-groups-v1'],
-            )..online = false),
+              online: false,
+            )),
       )
       .toList();
 
@@ -284,7 +285,8 @@ extension GroupService on LanService {
               port: member.port,
               platform: member.platform,
               capabilities: const ['lan-groups-v1'],
-            )..online = false,
+              online: false,
+            ),
           );
         }
         if (!next.activeFor(id)) markMessagesRead(peerId: next.conversationId);

@@ -133,6 +133,36 @@ void main() {
   }
 
   for (final width in [1440.0, 440.0]) {
+    testWidgets('offline devices show last online time at $width', (
+      tester,
+    ) async {
+      final service = UiFixtureService();
+      service.peers['home']!.lastSeen = DateTime(2020, 1, 2, 9, 8, 7);
+      await show(
+        tester,
+        service,
+        size: Size(width, 920),
+        textScale: width == 440 ? 1.3 : 1,
+      );
+      await navigate(tester, 1);
+      final label = find.byKey(const ValueKey('last-seen-home'));
+      await tester.ensureVisible(label);
+      await tester.pump();
+      expect(find.text('最后在线：'), findsOneWidget);
+      expect(find.text('2020-01-02 09:08'), findsOneWidget);
+      expect(find.byTooltip('最后在线：2020-01-02 09:08:07'), findsOneWidget);
+      expect(find.byKey(const ValueKey('last-seen-laptop')), findsNothing);
+      expect(tester.takeException(), isNull);
+      await capture(tester, 'devices-last-seen-${width.toInt()}');
+      service.peers['home']!.lastSeen = null;
+      service.emit();
+      await tester.pump();
+      expect(find.text('暂无记录'), findsOneWidget);
+      await finish(tester, service);
+    });
+  }
+
+  for (final width in [1440.0, 440.0]) {
     testWidgets('chat file cards share live history at $width', (tester) async {
       final service = UiFixtureService();
       await show(

@@ -5,6 +5,63 @@ import 'package:path/path.dart' as p;
 import 'app_theme.dart';
 export 'app_theme.dart';
 
+String formatLastSeen(
+  DateTime? lastSeen, {
+  DateTime? now,
+  bool precise = false,
+}) {
+  if (lastSeen == null) return '暂无记录';
+  final time = lastSeen.toLocal();
+  final current = (now ?? DateTime.now()).toLocal();
+  String two(int value) => value.toString().padLeft(2, '0');
+  final clock = '${two(time.hour)}:${two(time.minute)}';
+  final date = '${time.year}-${two(time.month)}-${two(time.day)}';
+  if (precise) return '$date $clock:${two(time.second)}';
+  final elapsed = current.difference(time);
+  if (!elapsed.isNegative && elapsed.inMinutes < 1) return '刚刚';
+  if (!elapsed.isNegative && elapsed.inMinutes < 60) {
+    return '${elapsed.inMinutes} 分钟前';
+  }
+  final day = DateTime(time.year, time.month, time.day);
+  if (day == DateTime(current.year, current.month, current.day)) {
+    return '今天 $clock';
+  }
+  if (day == DateTime(current.year, current.month, current.day - 1)) {
+    return '昨天 $clock';
+  }
+  return time.year == current.year
+      ? '${two(time.month)}-${two(time.day)} $clock'
+      : '$date $clock';
+}
+
+class PeerLastSeen extends StatelessWidget {
+  const PeerLastSeen({super.key, required this.lastSeen});
+  final DateTime? lastSeen;
+
+  @override
+  Widget build(BuildContext context) => Tooltip(
+    message: '最后在线：${formatLastSeen(lastSeen, precise: true)}',
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.only(top: 2),
+          child: Icon(LucideIcons.clock3, size: 13, color: muted),
+        ),
+        const SizedBox(width: 6),
+        Expanded(
+          child: DefaultTextStyle.merge(
+            style: const TextStyle(fontSize: 12, height: 1.5, color: muted),
+            child: Wrap(
+              children: [const Text('最后在线：'), Text(formatLastSeen(lastSeen))],
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
 class Brand extends StatelessWidget {
   const Brand({super.key, this.compact = false});
   final bool compact;

@@ -786,6 +786,99 @@ void main() {
   );
 
   test(
+    'last online time survives restart and updates on reconnection',
+    () async {
+      final recorded = DateTime.utc(2026, 1, 2, 9, 8, 7);
+      target
+        ..manual = false
+        ..lastSeen = recorded;
+      await sender.close();
+      final restored = LanService(
+        dataDirectory: sender.dataDirectory,
+        requestedPort: 0,
+        discoveryEnabled: false,
+      );
+      try {
+        await restored.start();
+        final peer = restored.peers[target.id]!;
+        expect(peer.online, isFalse);
+        expect(peer.lastSeen, recorded);
+        final before = DateTime.now();
+        await restored.connect('127.0.0.1:${receiver.port}');
+        expect(peer.online, isTrue);
+        expect(peer.lastSeen!.isBefore(before), isFalse);
+      } finally {
+        await restored.close();
+      }
+      final saved =
+          jsonDecode(
+                await File(
+                  p.join(sender.dataDirectory.path, 'settings.json'),
+                ).readAsString(),
+              )
+              as Map;
+      expect(
+        DateTime.parse(
+          (saved['peers'] as List).single['lastSeen'] as String,
+        ).isUtc,
+        isTrue,
+      );
+    },
+  );
+
+  for (final value in [null, 'not-a-timestamp']) {
+    test(
+      'unknown last online time is preserved for legacy value $value',
+      () async {
+        target.manual = false;
+        await sender.close();
+        final file = File(p.join(sender.dataDirectory.path, 'settings.json'));
+        final saved = jsonDecode(await file.readAsString()) as Map;
+        final peer = (saved['peers'] as List).single as Map;
+        if (value == null) {
+          peer.remove('lastSeen');
+        } else {
+          peer['lastSeen'] = value;
+        }
+        await file.writeAsString(jsonEncode(saved));
+        final restored = LanService(
+          dataDirectory: sender.dataDirectory,
+          requestedPort: 0,
+          discoveryEnabled: false,
+        );
+        try {
+          await restored.start();
+          expect(restored.error, isNull);
+          expect(restored.peers[target.id]!.online, isFalse);
+          expect(restored.peers[target.id]!.lastSeen, isNull);
+        } finally {
+          await restored.close();
+        }
+        final updated = jsonDecode(await file.readAsString()) as Map;
+        expect((updated['peers'] as List).single['lastSeen'], isNull);
+      },
+    );
+  }
+
+  test(
+    'going offline saves the last observation rather than the timeout',
+    () async {
+      final recorded = DateTime.now().subtract(const Duration(seconds: 20));
+      target
+        ..manual = false
+        ..lastSeen = recorded;
+      await waitFor(() => !target.online);
+      expect(target.lastSeen, recorded);
+      final file = File(p.join(sender.dataDirectory.path, 'settings.json'));
+      await waitFor(() {
+        final saved = jsonDecode(file.readAsStringSync()) as Map;
+        return (saved['peers'] as List).single['lastSeen'] ==
+            recorded.toUtc().toIso8601String();
+      });
+    },
+  );
+
+  test(
     'only a focused visible conversation consumes unread messages',
     () async {
       await sender.sendMessage(target, 'first');

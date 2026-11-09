@@ -32,7 +32,9 @@ class Peer {
     this.manual = false,
     this.remark = '',
     this.capabilities = const [],
-  }) : lastSeen = DateTime.now();
+    this.online = true,
+    DateTime? lastSeen,
+  }) : lastSeen = lastSeen ?? (online ? DateTime.now() : null);
   final String id;
   String name;
   String host;
@@ -43,8 +45,8 @@ class Peer {
   List<String> capabilities;
   String get displayName => remark.isEmpty ? name : remark;
   bool get supportsGroups => capabilities.contains('lan-groups-v1');
-  bool online = true;
-  DateTime lastSeen;
+  bool online;
+  DateTime? lastSeen;
   Uri uri(String path) =>
       Uri(scheme: 'http', host: host, port: port, path: path);
   String get address => '$host:$port';

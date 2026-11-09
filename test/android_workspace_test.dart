@@ -197,6 +197,37 @@ void main() {
     });
   }
 
+  for (final width in [390.0, 320.0]) {
+    testWidgets('Android offline devices show last online time at $width', (
+      tester,
+    ) async {
+      final service = UiFixtureService();
+      service.peers['home']!.lastSeen = DateTime(2020, 1, 2, 9, 8, 7);
+      await show(
+        tester,
+        fixtureService: service,
+        size: Size(width, 844),
+        scale: width == 320 ? 1.3 : 1,
+      );
+      await tab(tester, '设备');
+      final label = find.byKey(const ValueKey('last-seen-home'));
+      await tester.ensureVisible(label);
+      await tester.pump();
+      expect(find.text('最后在线：'), findsOneWidget);
+      expect(find.text('2020-01-02 09:08'), findsOneWidget);
+      expect(find.byTooltip('最后在线：2020-01-02 09:08:07'), findsOneWidget);
+      expect(find.byKey(const ValueKey('last-seen-laptop')), findsNothing);
+      expect(tester.takeException(), isNull);
+        if (captureAndroid) {
+        await capture(tester, 'devices-last-seen-${width.toInt()}');
+        }
+      service.peers['home']!.lastSeen = null;
+      service.emit();
+      await tester.pump();
+      expect(find.text('暂无记录'), findsOneWidget);
+    });
+  }
+
   Future<void> flushFiles(WidgetTester tester) async {
     for (var i = 0; i < 60; i++) {
       await tester.runAsync(

@@ -1745,6 +1745,14 @@ class _WorkspaceState extends State<Workspace> {
           overflow: TextOverflow.ellipsis,
           style: const TextStyle(fontSize: 12, color: muted),
         ),
+        const SizedBox(height: 6),
+        if (!peer.online)
+          PeerLastSeen(
+            key: ValueKey('last-seen-${peer.id}'),
+            lastSeen: peer.lastSeen,
+          )
+        else
+          SizedBox(height: MediaQuery.textScalerOf(context).scale(12) * 1.5),
         const SizedBox(height: 20),
         Wrap(
           spacing: 8,

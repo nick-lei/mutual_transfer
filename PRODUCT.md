@@ -54,6 +54,9 @@ accepted it, and where a received file is saved.
   is offline. Removed/dissolved group history remains readable. Existing members
   can communicate while the owner is offline, subject to LAN reachability.
 - Device identity, settings, and limited history are persisted by LanService.
+- Offline device cards on Windows and Android show the locally observed last
+  online time, with a precise timestamp on hover/long press. Times survive restart;
+  legacy records and unseen group members remain unknown until observed online.
 - Structured local diagnostics with bounded rotation, search, level filters,
   detail copying and JSONL export in settings. No chat bodies or file contents.
 - Negotiated streaming SHA-256 with Windows CNG acceleration, bounded file

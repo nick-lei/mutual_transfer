@@ -677,12 +677,25 @@ extension _AndroidWorkspace on _WorkspaceState {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
-          subtitle: Text(
-            peer.platform == 'Group'
-                ? '局域网群组'
-                : '${peer.remark.isNotEmpty ? '${peer.name} · ' : ''}${peer.platform}',
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                peer.platform == 'Group'
+                    ? '局域网群组'
+                    : '${peer.remark.isNotEmpty ? '${peer.name} · ' : ''}${peer.platform}',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              if (!peer.online && peer.platform != 'Group') ...[
+                const SizedBox(height: 4),
+                PeerLastSeen(
+                  key: ValueKey('last-seen-${peer.id}'),
+                  lastSeen: peer.lastSeen,
+                ),
+              ],
+            ],
           ),
           trailing: select
               ? Icon(

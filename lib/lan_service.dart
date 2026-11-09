@@ -168,6 +168,7 @@ class LanService {
   );
   Timer? _heartbeat;
   Timer? _saveTimer;
+  DateTime? _lastPresenceSave;
   Future<void> _saveQueue = Future.value();
   RandomAccessFile? _instanceLock;
   bool _ownsDirectory = false;
@@ -257,8 +258,9 @@ class LanService {
             manual: data['manual'] as bool,
             remark: data['remark'] as String? ?? '',
             capabilities: (data['capabilities'] as List? ?? []).cast<String>(),
+            online: false,
+            lastSeen: DateTime.tryParse('${data['lastSeen'] ?? ''}'),
           );
-          peer.online = false;
           peers[peer.id] = peer;
         }
         for (final raw in (config['groups'] as List? ?? [])) {
@@ -353,10 +355,15 @@ class LanService {
             ).whenComplete(() => _syncingGroups = false),
           );
         }
+        var presenceChanged = false;
         for (final peer in peers.values) {
-          if (now.difference(peer.lastSeen).inSeconds > 16 &&
-              !_sockets.containsKey(peer.id)) {
+          final lastSeen = peer.lastSeen;
+          if (peer.online && _sockets.containsKey(peer.id)) {
+            peer.lastSeen = now;
+          } else if (peer.online &&
+              (lastSeen == null || now.difference(lastSeen).inSeconds > 16)) {
             peer.online = false;
+            presenceChanged = true;
           }
         }
         for (final offer in _offers.values) {
@@ -378,7 +385,13 @@ class LanService {
           (_, offer) =>
               offer.decision.isCompleted && offer.files.every((f) => !f.active),
         );
-        _notify();
+        _notify(
+          persist:
+              presenceChanged ||
+              (peers.values.any((peer) => peer.online) &&
+                  (_lastPresenceSave == null ||
+                      now.difference(_lastPresenceSave!).inSeconds >= 30)),
+        );
       });
     } catch (e, stack) {
       error = '无法启动网络服务：$e';
@@ -458,8 +471,10 @@ class LanService {
             (localEndpoint && !_isLocalEndpoint(existing.host, existing.port)));
     final endpointHost = preserveEndpoint ? existing.host : host;
     final endpointPort = preserveEndpoint ? existing.port : peerPort;
+    final endpointOnline = !_isLocalEndpoint(endpointHost, endpointPort);
     final changed =
         existing == null ||
+        existing.online != endpointOnline ||
         existing.name != peerName ||
         existing.host != endpointHost ||
         existing.port != endpointPort ||
@@ -474,7 +489,7 @@ class LanService {
       ..port = endpointPort
       ..platform = '${data['platform'] ?? 'Desktop'}'
       ..lastSeen = DateTime.now()
-      ..online = !_isLocalEndpoint(endpointHost, endpointPort)
+      ..online = endpointOnline
       ..manual = (manual || peer.manual);
     peer.capabilities = (data['capabilities'] as List? ?? [])
         .whereType<String>()
@@ -1744,6 +1759,7 @@ class LanService {
 
   Future<void> _persist() {
     if (!_ownsDirectory) return Future.value();
+    _lastPresenceSave = DateTime.now();
     final settings = jsonEncode({
       'id': id,
       'name': name,
@@ -1759,6 +1775,7 @@ class LanService {
               'manual': peer.manual,
               'remark': peer.remark,
               'capabilities': peer.capabilities,
+              'lastSeen': peer.lastSeen?.toUtc().toIso8601String(),
             },
           )
           .toList(),
