@@ -1,0 +1,302 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-06T09:36:19.534051+00:00",
+  "title": "Design System: 邻传 NearLink",
+  "extensions": {
+    "colorMeta": {
+      "blue": {
+        "role": "primary",
+        "displayName": "blue",
+        "tonalRamp": [
+          "oklch(15.0% 0.0539 262.75)",
+          "oklch(26.0% 0.1077 262.75)",
+          "oklch(38.0% 0.1723 262.75)",
+          "oklch(50.0% 0.2154 262.75)",
+          "oklch(62.0% 0.2154 262.75)",
+          "oklch(74.0% 0.1723 262.75)",
+          "oklch(86.0% 0.1077 262.75)",
+          "oklch(95.0% 0.0431 262.75)"
+        ]
+      },
+      "blue-tint": {
+        "role": "primary",
+        "displayName": "blue-tint",
+        "tonalRamp": [
+          "oklch(15.0% 0.0053 268.43)",
+          "oklch(26.0% 0.0106 268.43)",
+          "oklch(38.0% 0.0169 268.43)",
+          "oklch(50.0% 0.0212 268.43)",
+          "oklch(62.0% 0.0212 268.43)",
+          "oklch(74.0% 0.0169 268.43)",
+          "oklch(86.0% 0.0106 268.43)",
+          "oklch(95.0% 0.0042 268.43)"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "ink",
+        "tonalRamp": [
+          "oklch(15.0% 0.0117 262.58)",
+          "oklch(26.0% 0.0234 262.58)",
+          "oklch(38.0% 0.0374 262.58)",
+          "oklch(50.0% 0.0468 262.58)",
+          "oklch(62.0% 0.0468 262.58)",
+          "oklch(74.0% 0.0374 262.58)",
+          "oklch(86.0% 0.0234 262.58)",
+          "oklch(95.0% 0.0094 262.58)"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "muted",
+        "tonalRamp": [
+          "oklch(15.0% 0.0108 260.59)",
+          "oklch(26.0% 0.0216 260.59)",
+          "oklch(38.0% 0.0345 260.59)",
+          "oklch(50.0% 0.0432 260.59)",
+          "oklch(62.0% 0.0432 260.59)",
+          "oklch(74.0% 0.0345 260.59)",
+          "oklch(86.0% 0.0216 260.59)",
+          "oklch(95.0% 0.0086 260.59)"
+        ]
+      },
+      "canvas": {
+        "role": "neutral",
+        "displayName": "canvas",
+        "tonalRamp": [
+          "oklch(15.0% 0.0017 268.55)",
+          "oklch(26.0% 0.0035 268.55)",
+          "oklch(38.0% 0.0056 268.55)",
+          "oklch(50.0% 0.0070 268.55)",
+          "oklch(62.0% 0.0070 268.55)",
+          "oklch(74.0% 0.0056 268.55)",
+          "oklch(86.0% 0.0035 268.55)",
+          "oklch(95.0% 0.0014 268.55)"
+        ]
+      },
+      "shell": {
+        "role": "neutral",
+        "displayName": "shell",
+        "tonalRamp": [
+          "oklch(15.0% 0.0036 264.50)",
+          "oklch(26.0% 0.0072 264.50)",
+          "oklch(38.0% 0.0116 264.50)",
+          "oklch(50.0% 0.0144 264.50)",
+          "oklch(62.0% 0.0144 264.50)",
+          "oklch(74.0% 0.0116 264.50)",
+          "oklch(86.0% 0.0072 264.50)",
+          "oklch(95.0% 0.0029 264.50)"
+        ]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "line",
+        "tonalRamp": [
+          "oklch(15.0% 0.0042 259.42)",
+          "oklch(26.0% 0.0084 259.42)",
+          "oklch(38.0% 0.0134 259.42)",
+          "oklch(50.0% 0.0167 259.42)",
+          "oklch(62.0% 0.0167 259.42)",
+          "oklch(74.0% 0.0134 259.42)",
+          "oklch(86.0% 0.0084 259.42)",
+          "oklch(95.0% 0.0033 259.42)"
+        ]
+      },
+      "white": {
+        "role": "neutral",
+        "displayName": "white",
+        "tonalRamp": [
+          "oklch(15.0% 0.0000 89.88)",
+          "oklch(26.0% 0.0000 89.88)",
+          "oklch(38.0% 0.0000 89.88)",
+          "oklch(50.0% 0.0000 89.88)",
+          "oklch(62.0% 0.0000 89.88)",
+          "oklch(74.0% 0.0000 89.88)",
+          "oklch(86.0% 0.0000 89.88)",
+          "oklch(95.0% 0.0000 89.88)"
+        ]
+      },
+      "field": {
+        "role": "neutral",
+        "displayName": "field",
+        "tonalRamp": [
+          "oklch(15.0% 0.0014 264.53)",
+          "oklch(26.0% 0.0029 264.53)",
+          "oklch(38.0% 0.0046 264.53)",
+          "oklch(50.0% 0.0057 264.53)",
+          "oklch(62.0% 0.0057 264.53)",
+          "oklch(74.0% 0.0046 264.53)",
+          "oklch(86.0% 0.0029 264.53)",
+          "oklch(95.0% 0.0011 264.53)"
+        ]
+      },
+      "green": {
+        "role": "secondary",
+        "displayName": "green",
+        "tonalRamp": [
+          "oklch(15.0% 0.0264 164.32)",
+          "oklch(26.0% 0.0528 164.32)",
+          "oklch(38.0% 0.0845 164.32)",
+          "oklch(50.0% 0.1057 164.32)",
+          "oklch(62.0% 0.1057 164.32)",
+          "oklch(74.0% 0.0845 164.32)",
+          "oklch(86.0% 0.0528 164.32)",
+          "oklch(95.0% 0.0211 164.32)"
+        ]
+      },
+      "mint": {
+        "role": "secondary",
+        "displayName": "mint",
+        "tonalRamp": [
+          "oklch(15.0% 0.0046 166.38)",
+          "oklch(26.0% 0.0092 166.38)",
+          "oklch(38.0% 0.0147 166.38)",
+          "oklch(50.0% 0.0183 166.38)",
+          "oklch(62.0% 0.0183 166.38)",
+          "oklch(74.0% 0.0147 166.38)",
+          "oklch(86.0% 0.0092 166.38)",
+          "oklch(95.0% 0.0037 166.38)"
+        ]
+      },
+      "danger": {
+        "role": "secondary",
+        "displayName": "danger",
+        "tonalRamp": [
+          "oklch(15.0% 0.0395 16.19)",
+          "oklch(26.0% 0.0790 16.19)",
+          "oklch(38.0% 0.1264 16.19)",
+          "oklch(50.0% 0.1580 16.19)",
+          "oklch(62.0% 0.1580 16.19)",
+          "oklch(74.0% 0.1264 16.19)",
+          "oklch(86.0% 0.0790 16.19)",
+          "oklch(95.0% 0.0316 16.19)"
+        ]
+      },
+      "amber": {
+        "role": "secondary",
+        "displayName": "amber",
+        "tonalRamp": [
+          "oklch(15.0% 0.0279 69.17)",
+          "oklch(26.0% 0.0559 69.17)",
+          "oklch(38.0% 0.0894 69.17)",
+          "oklch(50.0% 0.1118 69.17)",
+          "oklch(62.0% 0.1118 69.17)",
+          "oklch(74.0% 0.0894 69.17)",
+          "oklch(86.0% 0.0559 69.17)",
+          "oklch(95.0% 0.0224 69.17)"
+        ]
+      }
+    },
+    "shadows": [],
+    "motion": [
+      {
+        "name": "drop-background",
+        "value": "180ms",
+        "purpose": "拖放背景切换；禁用动画时为零。"
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "window-bottom-navigation",
+        "value": "640px"
+      },
+      {
+        "name": "window-expanded-sidebar",
+        "value": "900px"
+      },
+      {
+        "name": "send-content-columns",
+        "value": "660px"
+      },
+      {
+        "name": "chat-content-columns",
+        "value": "760px"
+      }
+    ],
+    "previewNotes": "HTML/CSS 只演示 Flutter token。hover/focus 是浏览器近似反馈；色阶是仅供面板展示的合成 OKLCH 色阶，并非原生主题新增颜色。"
+  },
+  "components": [
+    {
+      "name": "主要按钮",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "原生 Flutter 组件的 token 预览；浏览器交互反馈为近似演示，不是生产实现。",
+      "html": "<button class=\"ds-primary\">发送文件</button>",
+      "css": ".ds-primary {font-family:'Microsoft YaHei UI','Microsoft YaHei','Segoe UI',sans-serif;background:#2463EB;color:#FFFFFF;padding:13px 20px;border:none;border-radius:12px;min-height:44px;font-size:13px;font-weight:600;cursor:pointer;} .ds-primary:hover {filter:brightness(.96);} .ds-primary:focus-visible {outline:2px solid #2463EB;outline-offset:3px;} .ds-primary:active {filter:brightness(.92);}"
+    },
+    {
+      "name": "描边按钮",
+      "kind": "button",
+      "refersTo": "button-outlined",
+      "description": "原生 Flutter 组件的 token 预览；浏览器交互反馈为近似演示，不是生产实现。",
+      "html": "<button class=\"ds-outlined\">选择文件夹</button>",
+      "css": ".ds-outlined {font-family:'Microsoft YaHei UI','Microsoft YaHei','Segoe UI',sans-serif;background:transparent;color:#17233A;padding:13px 16px;border:1px solid #E0E7F2;border-radius:12px;min-height:44px;font-size:13px;font-weight:500;cursor:pointer;} .ds-outlined:hover {filter:brightness(.96);} .ds-outlined:focus-visible {outline:2px solid #2463EB;outline-offset:3px;} .ds-outlined:active {filter:brightness(.92);}"
+    },
+    {
+      "name": "文本按钮",
+      "kind": "button",
+      "refersTo": "button-text",
+      "description": "原生 Flutter 组件的 token 预览；浏览器交互反馈为近似演示，不是生产实现。",
+      "html": "<button class=\"ds-text\">全部记录</button>",
+      "css": ".ds-text {font-family:'Microsoft YaHei UI','Microsoft YaHei','Segoe UI',sans-serif;background:transparent;color:#2463EB;padding:10px 12px;border:none;border-radius:12px;min-height:40px;font-size:13px;font-weight:500;cursor:pointer;} .ds-text:hover {filter:brightness(.96);} .ds-text:focus-visible {outline:2px solid #2463EB;outline-offset:3px;} .ds-text:active {filter:brightness(.92);}"
+    },
+    {
+      "name": "输入框",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "原生 Flutter 组件的 token 预览；浏览器交互反馈为近似演示，不是生产实现。",
+      "html": "<input class=\"ds-input\" aria-label=\"设备名称\" placeholder=\"给这台设备起个容易认出的名字\">",
+      "css": ".ds-input {font-family:'Microsoft YaHei UI','Microsoft YaHei','Segoe UI',sans-serif;background:#F8FAFE;color:#17233A;border:1px solid #E0E7F2;border-radius:12px;padding:15px 16px;font-size:14px;max-width:100%;} .ds-input::placeholder {color:#62718A;font-size:13px;} .ds-input:hover {border-color:#62718A;} .ds-input:focus-visible {outline:2px solid #2463EB;outline-offset:-2px;}"
+    },
+    {
+      "name": "内容面板",
+      "kind": "card",
+      "refersTo": "surface",
+      "description": "原生 Flutter 组件的 token 预览；浏览器交互反馈为近似演示，不是生产实现。",
+      "html": "<section class=\"ds-surface\"><strong>设备与接收</strong><p>设备怎么称呼，文件放在哪里，都由你决定。</p></section>",
+      "css": ".ds-surface {font-family:'Microsoft YaHei UI','Microsoft YaHei','Segoe UI',sans-serif;background:#FFFFFF;color:#17233A;border-radius:16px;padding:24px;} .ds-surface strong {font-size:16px;} .ds-surface p {font-size:14px;line-height:1.5;color:#62718A;}"
+    },
+    {
+      "name": "选中导航",
+      "kind": "nav",
+      "refersTo": "navigation-selected",
+      "description": "原生 Flutter 组件的 token 预览；浏览器交互反馈为近似演示，不是生产实现。",
+      "html": "<nav class=\"ds-nav\"><button aria-current=\"page\">发送文件</button><button>附近设备</button></nav>",
+      "css": ".ds-nav {font-family:'Microsoft YaHei UI','Microsoft YaHei','Segoe UI',sans-serif;background:#EDF2FC;padding:16px;width:176px;} .ds-nav button {font-family:'Microsoft YaHei UI','Microsoft YaHei','Segoe UI',sans-serif;display:block;width:100%;border:0;background:transparent;color:#62718A;padding:14px;border-radius:12px;text-align:left;font-size:14px;font-weight:500;cursor:pointer;} .ds-nav button[aria-current] {background:#FFFFFF;color:#2463EB;font-weight:700;} .ds-nav button:hover {background:#EAF0FF;} .ds-nav button:focus-visible {outline:2px solid #2463EB;} .ds-nav button:active {filter:brightness(.96);}"
+    },
+    {
+      "name": "选中筛选",
+      "kind": "chip",
+      "refersTo": "chip-selected",
+      "description": "原生 Flutter 组件的 token 预览；浏览器交互反馈为近似演示，不是生产实现。",
+      "html": "<button class=\"ds-chip\" aria-pressed=\"true\">进行中</button>",
+      "css": ".ds-chip {font-family:'Microsoft YaHei UI','Microsoft YaHei','Segoe UI',sans-serif;background:#EAF0FF;color:#2463EB;padding:8px;border:0;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;} .ds-chip:hover {filter:brightness(.97);} .ds-chip:focus-visible {outline:2px solid #2463EB;outline-offset:2px;} .ds-chip:active {filter:brightness(.94);}"
+    }
+  ],
+  "narrative": {
+    "northStar": "让分享，近一点",
+    "overview": "这是已实现的 Flutter Windows 桌面视觉系统：浅冷白工作区、柔和蓝色外壳、明亮蓝色行动与深色中文文字。年轻感来自色彩、呼吸空间和亲切文案，内容层级保持实用、清晰。品牌保留「邻传 / NearLink」，使用两段圆角端点组成的开放式 N 标志。\n\n本文件从 `lib/ui/app_theme.dart`、`components.dart`、`workspace.dart` 与 `desktop_title_bar.dart` 提取。前置 YAML 是可复用 token 的规范层；其中 px 对应 Flutter 逻辑像素，不是物理屏幕像素。原生代码决定实际渲染，`.impeccable/design.json` 的 HTML/CSS 仅为组件 token 预览，不是另一套生产界面。产品能力见 [PRODUCT.md](PRODUCT.md)，协议见 [docs/PROTOCOL.md](docs/PROTOCOL.md)，页面策略见 [.impeccable/surfaces/desktop.md](.impeccable/surfaces/desktop.md)。",
+    "keyCharacteristics": [
+      "清楚的中文任务标题与 Lucide 线性图标。",
+      "冷白底色、蓝色操作、文字与图标共同表达状态。",
+      "柔和圆角、平面色块、适应窗口宽度的任务布局。"
+    ],
+    "rules": [
+      {
+        "name": "The State Has Words Rule",
+        "body": "连接、进度、失败与送达必须同时使用可读文字，颜色只辅助辨认。",
+        "section": "colors"
+      }
+    ],
+    "dos": [
+      "**Do** 从共享主题和组件构建新页面，使用中文任务标题和一致的 Lucide 图标。",
+      "**Do** 保留键盘焦点、图标 tooltip、可读状态与窄窗口重排。",
+      "**Do** 用真实设备名称、文件名、目的地和结果帮助用户确认操作。"
+    ],
+    "donts": [
+      "**Don't** 用状态颜色替代状态文字，或将已送达写成已读。",
+      "**Don't** 为普通内容面板添加装饰性阴影、渐变或入场动画。",
+      "**Don't** 将组件预览里的 HTML/CSS 当作 Flutter 生产实现或测试依据。"
+    ]
+  }
+}

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Keep the full brand mark inside Android 12's circular splash safe area. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="288dp"
+    android:height="288dp"
+    android:viewportWidth="288"
+    android:viewportHeight="288">
+    <group android:translateX="80" android:translateY="80">
+        <path
+            android:fillColor="#2463EB"
+            android:pathData="M36,4H92A32,32 0,0 1,124 36V92A32,32 0,0 1,92 124H36A32,32 0,0 1,4 92V36A32,32 0,0 1,36 4Z" />
+        <path
+            android:fillColor="@android:color/transparent"
+            android:pathData="M30,94V38C30,30 37,27 43,35L55,52"
+            android:strokeColor="#FFFFFF"
+            android:strokeWidth="20"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+        <path
+            android:fillColor="@android:color/transparent"
+            android:pathData="M98,34V90C98,98 91,101 85,93L73,76"
+            android:strokeColor="#93F1CB"
+            android:strokeWidth="20"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+    </group>
+</vector>
