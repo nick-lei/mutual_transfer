@@ -2,7 +2,7 @@
 
 ## 安装与卸载
 
-双击 `NearLink-0.3.1-windows-x64-Setup.exe`。安装向导提供简体中文与英文，默认安装到 `%LOCALAPPDATA%\Programs\NearLink`，可修改目录。安装仅针对当前 Windows 用户，不申请管理员权限。
+双击 `NearLink-0.3.2-windows-x64-Setup.exe`。安装向导提供简体中文与英文，默认安装到 `%LOCALAPPDATA%\Programs\NearLink`，可修改目录。安装仅针对当前 Windows 用户，不申请管理员权限。
 
 安装创建开始菜单的程序和卸载入口，并提供桌面快捷方式选项。完成页可立即运行邻传。系统「设置 → 应用 → 已安装的应用」中也会注册「邻传 NearLink」。运行所需的 Flutter 文件、插件与 Visual C++ 运行库随安装包提供。
 
@@ -12,6 +12,14 @@
 
 配置、日志和历史位于 `%LOCALAPPDATA%\NearLink`，默认接收目录位于 `%USERPROFILE%\Downloads\NearLink`。安装器只管理安装目录内的打包文件，不删除用户数据目录或接收目录，也不注册防火墙规则。
 
+## 清理离线设备
+
+Windows 和 Android 的「设备」页面提供垃圾桶图标，提示为「清理无记录的离线设备」。点击后先预览候选设备，确认后只移除当前仍离线、且没有备注、手动连接、聊天、传输或群组关联的设备。没有候选设备时入口不可用；设备在确认期间重新上线或产生记录时会自动保留。清理不改变本机身份、接收目录、聊天和传输历史，也不删除已接收的文件。被移除的设备再次上线时仍可重新发现。
+
+清理前自动保存原配置到应用数据目录的 `backups/devices-before-cleanup-*.json`。Windows 默认在 `%LOCALAPPDATA%\NearLink\backups`；Android 位于应用私有数据目录。备份或保存失败时会提示错误，不将清理视为成功。覆盖安装保留既有设备记录，因此升级后需要在对应设备上执行清理。
+
+维护人员也可以在项目中运行 `tool/cleanup_offline_devices.ps1`，默认仅预览；加 `-Apply` 才写入，`-DataDirectory` 可指定数据目录。脚本必须取得与应用相同的独占数据锁，正在运行的配置会拒绝处理；它只修改设备配置，不重写历史文件。此脚本不随安装包分发，日常使用直接通过程序内入口清理。
+
 ## 开机自启
 
 安装不会主动启用自启，仍由「设置 → 启动与关闭」控制。已有 NearLink 自启项在安装或升级后改为新安装路径，同时保留 Windows 的启用/禁用状态。卸载只移除指向当前安装程序的自启项；若用户之后让便携版接管了自启，该项保留。
@@ -20,8 +28,8 @@
 
 ```powershell
 flutter build windows --release --no-pub
-.\tool\package_windows.ps1 -Version 0.3.1
-.\tool\build_installer.ps1 -Version 0.3.1 -PrepareCompiler
+.\tool\package_windows.ps1 -Version 0.3.2
+.\tool\build_installer.ps1 -Version 0.3.2 -PrepareCompiler
 ```
 
 `tool/prepare_installer.ps1` 固定使用官方 Inno Setup 7.1.1 x64，下载路径为 GitHub 的 `jrsoftware/issrc` 官方发布页，验证 SHA-256 与 Authenticode 签名后准备到项目的 `build/installer-tools`。若已安装编译器，可通过 `-CompilerPath` 指定 `ISCC.exe`，也可使用 PATH 中的编译器。
@@ -30,8 +38,8 @@ flutter build windows --release --no-pub
 
 产物：
 
-- `outputs/NearLink-0.3.1-windows-x64-Setup.exe`：可点击安装版。
-- `outputs/NearLink-0.3.1-windows-x64.zip`：便携版。
+- `outputs/NearLink-0.3.2-windows-x64-Setup.exe`：可点击安装版。
+- `outputs/NearLink-0.3.2-windows-x64.zip`：便携版。
 
 当前安装包未配置发布者代码签名。签名发布需要正式证书和签名流程；下载来源信誉和不同电脑上的系统提示不属于本机安装测试的保证范围。
 

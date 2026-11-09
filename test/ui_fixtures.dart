@@ -148,6 +148,21 @@ class UiFixtureService extends LanService {
 
   @override
   void refresh() => emit();
+  final clearedPeerIds = <String>[];
+  @override
+  Future<int> clearUnusedOfflinePeers(Iterable<String> selectedIds) async {
+    final selected = selectedIds.toSet();
+    final removable = unusedOfflinePeers
+        .where((peer) => selected.contains(peer.id))
+        .toList();
+    for (final peer in removable) {
+      clearedPeerIds.add(peer.id);
+      peers.remove(peer.id);
+    }
+    emit();
+    return removable.length;
+  }
+
   @override
   void decide(IncomingOffer offer, bool accept) {
     super.decide(offer, accept);

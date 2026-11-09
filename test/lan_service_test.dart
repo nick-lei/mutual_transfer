@@ -972,6 +972,8 @@ void main() {
         await companion.close();
       }
     },
+    // Real multicast reaches running apps and can pollute their saved peer lists.
+    skip: !const bool.fromEnvironment('RUN_LAN_DISCOVERY_TEST'),
   );
 
   test('self connection and non-IP endpoints are rejected', () async {

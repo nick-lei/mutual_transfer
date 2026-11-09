@@ -57,6 +57,11 @@ accepted it, and where a received file is saved.
 - Offline device cards on Windows and Android show the locally observed last
   online time, with a precise timestamp on hover/long press. Times survive restart;
   legacy records and unseen group members remain unknown until observed online.
+- Windows and Android device pages offer previewed cleanup of unused offline
+  devices, with an automatic settings backup before removal. Online, manually
+  connected, remarked, chatting, transferring and group-related devices are
+  protected. Cleanup preserves device identity, history and received files;
+  removed devices can be discovered again when they return online.
 - Structured local diagnostics with bounded rotation, search, level filters,
   detail copying and JSONL export in settings. No chat bodies or file contents.
 - Negotiated streaming SHA-256 with Windows CNG acceleration, bounded file

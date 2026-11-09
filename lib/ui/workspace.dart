@@ -1571,6 +1571,14 @@ class _WorkspaceState extends State<Workspace> {
             spacing: 10,
             runSpacing: 8,
             children: [
+              IconButton(
+                key: const ValueKey('clear-offline-devices'),
+                tooltip: '清理无记录的离线设备',
+                onPressed: service.unusedOfflinePeers.isEmpty
+                    ? null
+                    : _confirmClearOfflineDevices,
+                icon: const Icon(LucideIcons.trash2, size: 19),
+              ),
               OutlinedButton.icon(
                 onPressed: service.refresh,
                 icon: const Icon(LucideIcons.refreshCw, size: 17),
@@ -2897,7 +2905,7 @@ class _WorkspaceState extends State<Workspace> {
             const Text('让文件和想法，在身边自由流动。', style: TextStyle(fontSize: 14)),
             const SizedBox(height: 8),
             const Text(
-              'Windows · v0.3.1\n明亮外观 · 活力蓝',
+              'Windows · v0.3.2\n明亮外观 · 活力蓝',
               style: TextStyle(fontSize: 12, height: 1.8, color: muted),
             ),
           ],
@@ -3083,6 +3091,91 @@ class _WorkspaceState extends State<Workspace> {
     unawaited(
       Future<void>.delayed(const Duration(milliseconds: 400), input.dispose),
     );
+  }
+
+  Future<void> _confirmClearOfflineDevices() async {
+    final candidates = service.unusedOfflinePeers;
+    if (candidates.isEmpty) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('清理离线设备'),
+        scrollable: true,
+        content: SizedBox(
+          width: 440,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('将移除以下 ${candidates.length} 台无使用记录的离线设备。'),
+              const SizedBox(height: 12),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 200),
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      for (final peer in candidates)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          child: Row(
+                            children: [
+                              DeviceAvatar(peer.platform, size: 32),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      peer.displayName,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    Text(
+                                      peer.address,
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: muted,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                '有备注、手动连接、聊天、传输或群组记录的设备会保留。清理前会自动备份，设备再次上线时仍可发现。',
+                style: TextStyle(fontSize: 13, color: muted),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('取消'),
+          ),
+          FilledButton.icon(
+            key: const ValueKey('confirm-clear-offline-devices'),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            icon: const Icon(LucideIcons.trash2, size: 16),
+            label: const Text('清理设备'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    await _guard(() async {
+      final count = await service.clearUnusedOfflinePeers(
+        candidates.map((peer) => peer.id),
+      );
+      _toast(count > 0 ? '已清理 $count 台离线设备' : '设备状态已更新，暂无可清理的设备');
+    });
   }
 
   Future<void> _confirmClear() async {

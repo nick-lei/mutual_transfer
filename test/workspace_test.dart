@@ -133,6 +133,43 @@ void main() {
   }
 
   for (final width in [1440.0, 440.0]) {
+    testWidgets('device cleanup previews, cancels and confirms at $width', (
+      tester,
+    ) async {
+      final service = UiFixtureService();
+      await show(
+        tester,
+        service,
+        size: Size(width, 920),
+        textScale: width == 440 ? 1.3 : 1,
+      );
+      await navigate(tester, 1);
+      final clear = find.byKey(const ValueKey('clear-offline-devices'));
+      await tester.tap(clear);
+      await tester.pump(const Duration(milliseconds: 350));
+      expect(find.text('清理离线设备'), findsOneWidget);
+      expect(find.text('将移除以下 1 台无使用记录的离线设备。'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await capture(tester, 'devices-cleanup-dialog-${width.toInt()}');
+      await tester.tap(find.text('取消'));
+      await tester.pump(const Duration(milliseconds: 350));
+      expect(service.peers.containsKey('home'), isTrue);
+      await tester.tap(clear);
+      await tester.pump(const Duration(milliseconds: 350));
+      await tester.tap(
+        find.byKey(const ValueKey('confirm-clear-offline-devices')),
+      );
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(service.clearedPeerIds, ['home']);
+      expect(service.messages, hasLength(4));
+      expect(service.transfers, hasLength(3));
+      expect(tester.widget<IconButton>(clear).onPressed, isNull);
+      expect(tester.takeException(), isNull);
+      await finish(tester, service);
+    });
+  }
+
+  for (final width in [1440.0, 440.0]) {
     testWidgets('offline devices show last online time at $width', (
       tester,
     ) async {

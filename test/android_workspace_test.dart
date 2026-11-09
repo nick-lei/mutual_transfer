@@ -198,6 +198,33 @@ void main() {
   }
 
   for (final width in [390.0, 320.0]) {
+    testWidgets('Android device cleanup confirms at $width', (tester) async {
+      final fixture = await show(
+        tester,
+        size: Size(width, 844),
+        scale: width == 320 ? 1.3 : 1,
+      );
+      await tab(tester, '设备');
+      await tester.tap(find.byKey(const ValueKey('clear-offline-devices')));
+      await tester.pump(const Duration(milliseconds: 350));
+      expect(find.text('清理离线设备'), findsOneWidget);
+      expect(find.text('将移除以下 1 台无使用记录的离线设备。'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      if (captureAndroid) {
+        await capture(tester, 'devices-cleanup-dialog-${width.toInt()}');
+      }
+      await tester.tap(
+        find.byKey(const ValueKey('confirm-clear-offline-devices')),
+      );
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(fixture.service.clearedPeerIds, ['home']);
+      expect(fixture.service.messages, hasLength(4));
+      expect(fixture.service.transfers, hasLength(3));
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  for (final width in [390.0, 320.0]) {
     testWidgets('Android offline devices show last online time at $width', (
       tester,
     ) async {
@@ -218,9 +245,9 @@ void main() {
       expect(find.byTooltip('最后在线：2020-01-02 09:08:07'), findsOneWidget);
       expect(find.byKey(const ValueKey('last-seen-laptop')), findsNothing);
       expect(tester.takeException(), isNull);
-        if (captureAndroid) {
+      if (captureAndroid) {
         await capture(tester, 'devices-last-seen-${width.toInt()}');
-        }
+      }
       service.peers['home']!.lastSeen = null;
       service.emit();
       await tester.pump();

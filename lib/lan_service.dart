@@ -80,6 +80,73 @@ class LanService {
   Stream<TransferCompletion> get completedTransfers =>
       _completedTransfers.stream;
   final Map<String, Peer> peers = {};
+  bool _cleaningPeers = false;
+  List<Peer> get unusedOfflinePeers {
+    final referenced = {
+      ...messages.map((message) => message.peerId),
+      ...transfers.map((transfer) => transfer.peerId),
+      ...groups.values.expand(
+        (group) => group.members.map((member) => member.id),
+      ),
+      ...groups.values.map((group) => group.ownerId),
+      ...groups.values.expand((group) => group.pendingSync),
+      ...incoming.map((offer) => offer.peer.id),
+      ..._outgoingOffers.values.map((offer) => offer.peer.id),
+      ..._sockets.keys,
+    };
+    return peers.values
+        .where(
+          (peer) =>
+              !peer.online &&
+              !peer.manual &&
+              peer.remark.isEmpty &&
+              !referenced.contains(peer.id),
+        )
+        .toList();
+  }
+
+  Future<int> clearUnusedOfflinePeers(Iterable<String> selectedIds) async {
+    if (_cleaningPeers) throw const FormatException('正在清理设备，请稍候');
+    if (_closed || !_ownsDirectory) throw const FormatException('服务未就绪，暂时无法清理');
+    final selected = selectedIds.toSet();
+    if (!unusedOfflinePeers.any((peer) => selected.contains(peer.id))) return 0;
+    _cleaningPeers = true;
+    final removed = <String, Peer>{};
+    try {
+      await _persist(throwOnError: true, settingsOnly: true);
+      final backups = await Directory(
+        p.join(dataDirectory.path, 'backups'),
+      ).create(recursive: true);
+      final backup = p.join(
+        backups.path,
+        'devices-before-cleanup-${DateTime.now().toUtc().microsecondsSinceEpoch}.json',
+      );
+      await File(p.join(dataDirectory.path, 'settings.json')).copy(backup);
+      if (_closed) throw const FormatException('程序正在退出，清理已取消');
+      // Recheck after backup I/O: a previewed device may have reconnected.
+      for (final peer in unusedOfflinePeers) {
+        if (selected.contains(peer.id)) {
+          removed[peer.id] = peers.remove(peer.id)!;
+        }
+      }
+      if (removed.isEmpty) return 0;
+      await _persist(throwOnError: true, settingsOnly: true);
+      log.info(
+        'discovery',
+        'unused_peers_cleared',
+        '已清理无记录的离线设备',
+        fields: {'count': removed.length, 'backup': backup},
+      );
+      return removed.length;
+    } catch (_) {
+      peers.addAll(removed);
+      rethrow;
+    } finally {
+      _cleaningPeers = false;
+      _notify();
+    }
+  }
+
   final List<TransferItem> transfers = [];
   final List<ChatMessage> messages = [];
   final Map<String, LanGroup> groups = {};
@@ -1757,7 +1824,10 @@ class LanService {
     _notify(persist: true);
   }
 
-  Future<void> _persist() {
+  Future<void> _persist({
+    bool throwOnError = false,
+    bool settingsOnly = false,
+  }) {
     if (!_ownsDirectory) return Future.value();
     _lastPresenceSave = DateTime.now();
     final settings = jsonEncode({
@@ -1792,12 +1862,13 @@ class LanService {
         .catchError((Object _) {})
         .then((_) async {
           await _writeAtomic('settings.json', settings);
-          await _writeAtomic('history.json', history);
+          if (!settingsOnly) await _writeAtomic('history.json', history);
         })
-        .catchError((Object e) {
+        .catchError((Object e, StackTrace stack) {
           error = '本地记录保存失败：$e';
           log.error('storage', 'records_write_failed', '本地记录保存失败', error: e);
           if (!_closed) _changes.add(null);
+          if (throwOnError) Error.throwWithStackTrace(e, stack);
         });
     return _saveQueue;
   }

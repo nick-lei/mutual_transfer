@@ -71,6 +71,15 @@ extension _AndroidWorkspace on _WorkspaceState {
                     : Text(_WorkspaceState._labels[_page]),
                 titleTextStyle: Theme.of(context).textTheme.titleLarge,
                 actions: [
+                  if (_page == 1)
+                    IconButton(
+                      key: const ValueKey('clear-offline-devices'),
+                      tooltip: '清理无记录的离线设备',
+                      onPressed: service.unusedOfflinePeers.isEmpty
+                          ? null
+                          : _confirmClearOfflineDevices,
+                      icon: const Icon(LucideIcons.trash2),
+                    ),
                   if (_page == 0 || _page == 1)
                     IconButton(
                       tooltip: '连接设备',
@@ -1306,7 +1315,7 @@ extension _AndroidWorkspace on _WorkspaceState {
               const SizedBox(width: 8),
               Flexible(
                 child: Text(
-                  '邻传 NearLink · 0.3.1',
+                  '邻传 NearLink · 0.3.2',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ),
