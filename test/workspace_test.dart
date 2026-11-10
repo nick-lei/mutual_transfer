@@ -13,6 +13,7 @@ import 'package:mutual_transfer/desktop/desktop_controller.dart';
 import 'package:mutual_transfer/main.dart';
 import 'package:mutual_transfer/models.dart';
 import 'package:mutual_transfer/ui/desktop_title_bar.dart';
+import 'package:path/path.dart' as p;
 
 import 'ui_fixtures.dart';
 import 'desktop_fixtures.dart';
@@ -180,6 +181,230 @@ void main() {
     );
     await tester.pump(const Duration(milliseconds: 250));
     return gesture;
+  }
+
+  DropTarget chatDrop(WidgetTester tester, String id) =>
+      tester.widget<DropTarget>(find.byKey(ValueKey('chat-drop-$id')));
+
+  void dropPaths(DropTarget target, List<String> paths) => target.onDragDone!(
+    DropDoneDetails(
+      files: paths.map(DropItemFile.new).toList(),
+      localPosition: Offset.zero,
+      globalPosition: Offset.zero,
+    ),
+  );
+
+  testWidgets(
+    'Explorer chat drop sends files and folders inline and preserves drafts',
+    (tester) async {
+      final service = ForwardFileFixtureService();
+      late Directory directory;
+      late File document;
+      late File nested;
+      await tester.runAsync(() async {
+        directory = await Directory.systemTemp.createTemp(
+          'nearlink-chat-drop-',
+        );
+        document = await File(
+          '${directory.path}/说明.txt',
+        ).writeAsString('hello');
+        final folder = await Directory(
+          '${directory.path}/照片/周末',
+        ).create(recursive: true);
+        nested = await File('${folder.path}/原图.jpg').writeAsBytes([1, 2, 3]);
+      });
+      addTearDown(
+        () => tester.runAsync(() => directory.delete(recursive: true)),
+      );
+      await show(tester, service);
+      await navigate(tester, 2);
+      await tester.tap(find.byKey(const ValueKey('conversation-laptop')));
+      await tester.pump();
+      await tester.enterText(
+        find.byKey(const ValueKey('message-input')),
+        '未发送的草稿',
+      );
+      chatDrop(tester, 'laptop').onDragEntered!(
+        DropEventDetails(
+          localPosition: Offset.zero,
+          globalPosition: Offset.zero,
+        ),
+      );
+      await tester.pump();
+      expect(
+        find.byKey(const ValueKey('chat-drop-feedback-laptop')),
+        findsOneWidget,
+      );
+      expect(find.text('发送给 我的笔记本'), findsOneWidget);
+      await capture(tester, 'chat-explorer-drop-desktop');
+      dropPaths(chatDrop(tester, 'laptop'), [
+        document.path,
+        '${directory.path}/照片',
+        document.path,
+      ]);
+      await flushForwarding(tester);
+      expect(service.sentBatches, hasLength(1));
+      expect(service.sentBatches.single.peerId, 'laptop');
+      final files = service.sentBatches.single.files;
+      expect(
+        files.map((file) => p.normalize(file.path)),
+        unorderedEquals([p.normalize(document.path), p.normalize(nested.path)]),
+      );
+      expect(
+        files.firstWhere((file) => file.name == '原图.jpg').relativePath,
+        '照片/周末/原图.jpg',
+      );
+      expect(
+        find.byKey(const ValueKey('chat-drop-feedback-laptop')),
+        findsNothing,
+      );
+      expect(
+        find.byKey(ValueKey('chat-progress-${service.transfers.first.id}')),
+        findsOneWidget,
+      );
+      expect(find.byKey(const ValueKey('send-files')), findsNothing);
+      expect(
+        tester
+            .widget<TextField>(find.byKey(const ValueKey('message-input')))
+            .controller!
+            .text,
+        '未发送的草稿',
+      );
+      await capture(tester, 'chat-explorer-progress-desktop');
+      await navigate(tester, 0);
+      expect(find.byTooltip('清空待发送队列'), findsNothing);
+      expect(
+        tester
+            .widget<FilledButton>(find.byKey(const ValueKey('send-files')))
+            .onPressed,
+        isNull,
+      );
+      expect(tester.takeException(), isNull);
+      await finish(tester, service);
+    },
+  );
+
+  testWidgets(
+    'Explorer chat drop keeps the captured recipient when changing chats',
+    (tester) async {
+      final service = ForwardFileFixtureService();
+      final file = await forwardFileFixture(tester, service);
+      await show(tester, service);
+      await navigate(tester, 2);
+      await tester.tap(find.byKey(const ValueKey('conversation-laptop')));
+      await tester.pump();
+      dropPaths(chatDrop(tester, 'laptop'), [file.savedPath!]);
+      await tester.tap(find.byKey(const ValueKey('conversation-studio')));
+      await flushForwarding(tester);
+      expect(service.sentBatches.single.peerId, 'laptop');
+      expect(find.byKey(const ValueKey('chat-drop-studio')), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await finish(tester, service);
+    },
+  );
+
+  for (final offlineAfterDrop in [false, true]) {
+    testWidgets(
+      'Explorer chat drop rejects ${offlineAfterDrop ? 'a recipient going offline during enumeration' : 'an offline chat'}',
+      (tester) async {
+        final service = ForwardFileFixtureService();
+        final file = await forwardFileFixture(tester, service);
+        final id = offlineAfterDrop ? 'laptop' : 'home';
+        await show(tester, service);
+        await navigate(tester, 2);
+        await tester.tap(find.byKey(ValueKey('conversation-$id')));
+        await tester.pump();
+        dropPaths(chatDrop(tester, id), [file.savedPath!]);
+        if (offlineAfterDrop) service.peers[id]!.online = false;
+        await flushForwarding(tester);
+        expect(service.sentBatches, isEmpty);
+        expect(find.text('接收方已离线，请上线后重新拖入文件'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+        await finish(tester, service);
+      },
+    );
+  }
+
+  testWidgets(
+    'Explorer chat drop rejects missing files and ignores a covered chat',
+    (tester) async {
+      final service = ForwardFileFixtureService();
+      final file = await forwardFileFixture(tester, service);
+      await show(tester, service);
+      await navigate(tester, 2);
+      await tester.tap(find.byKey(const ValueKey('conversation-laptop')));
+      await tester.pump();
+      dropPaths(chatDrop(tester, 'laptop'), ['${file.savedPath}.missing']);
+      await flushForwarding(tester);
+      expect(find.text('没有可发送的文件，请确认文件仍在原位置'), findsOneWidget);
+      final target = chatDrop(tester, 'laptop');
+      target.onDragEntered!(
+        DropEventDetails(
+          localPosition: Offset.zero,
+          globalPosition: Offset.zero,
+        ),
+      );
+      await tester.pump();
+      await tester.tap(find.byTooltip('设置设备备注'));
+      await tester.pumpAndSettle();
+      expect(chatDrop(tester, 'laptop').enable, isFalse);
+      // A delayed platform callback must also respect the current route.
+      dropPaths(target, [file.savedPath!]);
+      await flushForwarding(tester);
+      expect(service.sentBatches, isEmpty);
+      expect(
+        find.byKey(const ValueKey('chat-drop-feedback-laptop')),
+        findsNothing,
+      );
+      expect(tester.takeException(), isNull);
+      await finish(tester, service);
+    },
+  );
+
+  for (final width in [1440.0, 1040.0, 720.0]) {
+    testWidgets(
+      'conversation presence stays visible with previews and unread at $width',
+      (tester) async {
+        final service = UiFixtureService();
+        final group = service.addGroupFixture();
+        service.peers['home']!.name = '家里的离线电脑与很长很长的设备名称';
+        await show(
+          tester,
+          service,
+          size: Size(width, 920),
+          textScale: width == 1040 ? 1.3 : 1,
+        );
+        await navigate(tester, 2);
+        String? presence(String id) => tester
+            .widget<Text>(find.byKey(ValueKey('conversation-presence-$id')))
+            .data;
+        expect(presence('laptop'), '在线');
+        expect(presence('home'), '离线');
+        expect(presence(group.conversationId), '3 人在线');
+        expect(
+          find.descendant(
+            of: find.byKey(const ValueKey('conversation-laptop')),
+            matching: find.byKey(const ValueKey('unread-badge')),
+          ),
+          findsOneWidget,
+        );
+        await capture(tester, 'messages-presence-desktop-${width.toInt()}');
+        service.peers['laptop']!.online = false;
+        service.peers['studio']!.online = false;
+        service.peers['home']!.online = true;
+        service.emit();
+        await tester.pump();
+        expect(presence('laptop'), '离线');
+        expect(presence('home'), '在线');
+        expect(presence(group.conversationId), '仅你在线');
+        group.dissolved = true;
+        service.emit();
+        await tester.pump();
+        expect(presence(group.conversationId), '已解散');
+        expect(tester.takeException(), isNull);
+        await finish(tester, service);
+      },
+    );
   }
 
   for (final groupTarget in [false, true]) {

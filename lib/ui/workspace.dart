@@ -5,6 +5,7 @@ import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:path/path.dart' as p;
@@ -73,7 +74,21 @@ class _WorkspaceState extends State<Workspace> {
   bool _saving = false, _settingsDirty = false;
   bool _pickingChat = false;
   bool _choosingForward = false;
+  String? _chatDragPeerId;
   void _setPickingChat(bool picking) => setState(() => _pickingChat = picking);
+  void _setChatDragPeer(String? id) {
+    if (!mounted || _chatDragPeerId == id) return;
+    // Disabling a native drop target can synchronously report an exit in build.
+    if (WidgetsBinding.instance.schedulerPhase ==
+        SchedulerPhase.persistentCallbacks) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _setChatDragPeer(id);
+      });
+      return;
+    }
+    setState(() => _chatDragPeerId = id);
+  }
+
   String _directory = '';
   String? _settingsError;
   bool? _sidebarCollapsed;
@@ -286,6 +301,7 @@ class _WorkspaceState extends State<Workspace> {
   void _navigate(int page) {
     setState(() {
       _page = page;
+      _chatDragPeerId = null;
     });
     _syncMessageView();
     if (_pageScroll.hasClients) _pageScroll.jumpTo(0);
@@ -323,6 +339,7 @@ class _WorkspaceState extends State<Workspace> {
     if (_chatPeerId != null) _drafts[_chatPeerId!] = _message.text;
     setState(() {
       _chatPeerId = peer.id;
+      _chatDragPeerId = null;
       _message.text = _drafts[peer.id] ?? '';
       _page = 2;
     });
@@ -2247,20 +2264,31 @@ class _WorkspaceState extends State<Workspace> {
                                               ),
                                             ),
                                             const SizedBox(height: 5),
-                                            Text(
-                                              draft.isNotEmpty
-                                                  ? '草稿 · $draft'
-                                                  : summary.preview,
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                color: draft.isNotEmpty
-                                                    ? blue
-                                                    : active
-                                                    ? const Color(0xff53617a)
-                                                    : muted,
-                                              ),
+                                            Row(
+                                              children: [
+                                                _conversationPresence(peer),
+                                                const SizedBox(width: 8),
+                                                Expanded(
+                                                  child: Text(
+                                                    draft.isNotEmpty
+                                                        ? '草稿 · $draft'
+                                                        : summary.preview,
+                                                    maxLines: 1,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                    style: TextStyle(
+                                                      fontSize: 12,
+                                                      color: draft.isNotEmpty
+                                                          ? blue
+                                                          : active
+                                                          ? const Color(
+                                                              0xff53617a,
+                                                            )
+                                                          : muted,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
                                             ),
                                           ],
                                         ),
@@ -2299,7 +2327,7 @@ class _WorkspaceState extends State<Workspace> {
     }
     final group = service.groupForConversation(peer.id);
     final entries = _conversationEntries(peer.id);
-    return ClipRRect(
+    final panel = ClipRRect(
       borderRadius: BorderRadius.circular(
         widget.android != null && showBack ? 0 : 16,
       ),
@@ -2354,7 +2382,7 @@ class _WorkspaceState extends State<Workspace> {
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontSize: 12,
-                            color: peer.online ? green : muted,
+                            color: _forwardTargetOnline(peer) ? green : muted,
                           ),
                         ),
                       ],
@@ -2362,7 +2390,7 @@ class _WorkspaceState extends State<Workspace> {
                   ),
                   IconButton(
                     tooltip: '给 ${peer.displayName} 发文件',
-                    onPressed: peer.online && !_pickingChat
+                    onPressed: _forwardTargetOnline(peer) && !_pickingChat
                         ? () => _pickConversationFiles(peer)
                         : null,
                     icon: const Icon(LucideIcons.folderUp, size: 19),
@@ -2467,6 +2495,7 @@ class _WorkspaceState extends State<Workspace> {
         ),
       ),
     );
+    return _conversationDropTarget(peer, panel);
   }
 
   Widget _messageBubble(
@@ -2916,7 +2945,7 @@ class _WorkspaceState extends State<Workspace> {
             const Text('让文件和想法，在身边自由流动。', style: TextStyle(fontSize: 14)),
             const SizedBox(height: 8),
             const Text(
-              'Windows · v0.3.3\n明亮外观 · 活力蓝',
+              'Windows · v0.3.4\n明亮外观 · 活力蓝',
               style: TextStyle(fontSize: 12, height: 1.8, color: muted),
             ),
           ],

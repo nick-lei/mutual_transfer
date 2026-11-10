@@ -7,6 +7,146 @@ typedef _ChatEntry = ({
 });
 
 extension _ChatFiles on _WorkspaceState {
+  bool _chatDropVisible(BuildContext dropContext, String peerId) =>
+      mounted &&
+      _page == 2 &&
+      _chatPeerId == peerId &&
+      !_choosingForward &&
+      ModalRoute.of(dropContext)?.isCurrent != false;
+
+  Future<void> _dropConversationFiles(
+    String targetId,
+    List<String> paths,
+  ) async {
+    if (_pickingChat) return;
+    _setPickingChat(true);
+    try {
+      await _guard(() async {
+        final files = await LocalFile.fromPaths(paths);
+        if (!mounted) return;
+        if (files.isEmpty) {
+          throw const FormatException('没有可发送的文件，请确认文件仍在原位置');
+        }
+        // Disk enumeration may outlive a conversation change or presence update.
+        final group = service.groupForConversation(targetId);
+        final peer = service.peers[targetId] ?? _groupPeer(group);
+        if (peer == null || !_forwardTargetOnline(peer)) {
+          throw const FormatException('接收方已离线，请上线后重新拖入文件');
+        }
+        unawaited(
+          _guard(
+            () => group == null
+                ? service.sendFiles(peer, files)
+                : service.sendGroupFiles(group, files),
+          ),
+        );
+        if (_chatPeerId == targetId) _scrollConversation();
+      });
+    } finally {
+      if (mounted) _setPickingChat(false);
+    }
+  }
+
+  Widget _conversationDropTarget(Peer peer, Widget child) {
+    if (widget.android != null) return child;
+    return Builder(
+      builder: (dropContext) {
+        final visible = _chatDropVisible(dropContext, peer.id);
+        final available = _forwardTargetOnline(peer);
+        final hovering = visible && _chatDragPeerId == peer.id;
+        final ready = available && !_pickingChat;
+        final color = available ? blue : muted;
+        void enter(DropEventDetails _) {
+          if (_chatDropVisible(dropContext, peer.id)) _setChatDragPeer(peer.id);
+        }
+
+        return DropTarget(
+          key: ValueKey('chat-drop-${peer.id}'),
+          enable: visible,
+          onDragEntered: enter,
+          onDragUpdated: enter,
+          onDragExited: (_) => _setChatDragPeer(null),
+          onDragDone: (details) {
+            _setChatDragPeer(null);
+            if (!_chatDropVisible(dropContext, peer.id)) return;
+            if (!available || !_forwardTargetOnline(peer)) {
+              _toast('接收方已离线，请上线后重新拖入文件');
+              return;
+            }
+            if (_pickingChat) {
+              _toast('正在整理文件，请稍候再拖入');
+              return;
+            }
+            unawaited(
+              _dropConversationFiles(
+                peer.id,
+                details.files.map((file) => file.path).toList(),
+              ),
+            );
+          },
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              child,
+              if (hovering)
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: Container(
+                      key: ValueKey('chat-drop-feedback-${peer.id}'),
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: color, width: 2),
+                      ),
+                      child: Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              ready
+                                  ? LucideIcons.folderUp
+                                  : LucideIcons.circleAlert,
+                              size: 36,
+                              color: color,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              available
+                                  ? _pickingChat
+                                        ? '正在整理文件，请稍候'
+                                        : '发送给 ${peer.displayName}'
+                                  : '${peer.displayName} 已离线',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: color,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              ready ? '松开发送' : '请稍后重新拖入',
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: muted,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   List<_ChatEntry> _conversationEntries(String id) {
     final entries = <_ChatEntry>[
       for (final message in service.messages)
@@ -47,11 +187,7 @@ extension _ChatFiles on _WorkspaceState {
     }
     return (
       time: message?.time,
-      preview: message != null
-          ? service.messagePreview(message)
-          : peer.online
-          ? '在线，可以开始聊天'
-          : '设备暂时离线',
+      preview: message != null ? service.messagePreview(message) : '暂无消息',
     );
   }
 

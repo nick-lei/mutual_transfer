@@ -26,6 +26,56 @@ extension _GroupWorkspace on _WorkspaceState {
       ? _groupAvatar()
       : DeviceAvatar(peer.platform, size: 40, active: active);
 
+  Widget _conversationPresence(Peer peer) {
+    final group = service.groupForConversation(peer.id);
+    final available = _forwardTargetOnline(peer);
+    final String label;
+    if (group == null) {
+      label = available ? '在线' : '离线';
+    } else if (group.dissolved) {
+      label = '已解散';
+    } else if (group.left) {
+      label = '已退出';
+    } else if (!group.contains(service.id)) {
+      label = '已移出';
+    } else {
+      final count = service.groupPeers(group).where((p) => p.online).length + 1;
+      label = count == 1 ? '仅你在线' : '$count 人在线';
+    }
+    final color = available ? green : muted;
+    return Tooltip(
+      message: group == null
+          ? available
+                ? '在线，可以发送消息和文件'
+                : '离线，可查看历史消息'
+          : _groupStatus(group),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: available ? green : Colors.transparent,
+              border: available ? null : Border.all(color: muted),
+            ),
+          ),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            key: ValueKey('conversation-presence-${peer.id}'),
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   String _groupStatus(LanGroup group) {
     if (group.dissolved) return '群组已解散 · 可查看历史消息';
     if (group.left) {

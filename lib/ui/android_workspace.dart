@@ -365,16 +365,26 @@ extension _AndroidWorkspace on _WorkspaceState {
                                   ),
                                 ),
                                 const SizedBox(height: 5),
-                                Text(
-                                  draft.isNotEmpty
-                                      ? '草稿 · $draft'
-                                      : summary.preview,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: draft.isNotEmpty ? blue : muted,
-                                  ),
+                                Row(
+                                  children: [
+                                    _conversationPresence(peer),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        draft.isNotEmpty
+                                            ? '草稿 · $draft'
+                                            : summary.preview,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          color: draft.isNotEmpty
+                                              ? blue
+                                              : muted,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
@@ -397,17 +407,7 @@ extension _AndroidWorkspace on _WorkspaceState {
                                 ),
                                 const SizedBox(height: 8),
                               ],
-                              if (count > 0)
-                                _badge(count)
-                              else
-                                Icon(
-                                  peer.online
-                                      ? LucideIcons.circleCheck
-                                      : LucideIcons.circle,
-                                  size: 18,
-                                  color: peer.online ? green : muted,
-                                  semanticLabel: peer.online ? '在线' : '离线',
-                                ),
+                              if (count > 0) _badge(count),
                             ],
                           ),
                         ],
@@ -1319,7 +1319,7 @@ extension _AndroidWorkspace on _WorkspaceState {
               const SizedBox(width: 8),
               Flexible(
                 child: Text(
-                  '邻传 NearLink · 0.3.3',
+                  '邻传 NearLink · 0.3.4',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ),

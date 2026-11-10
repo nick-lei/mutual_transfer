@@ -198,6 +198,49 @@ void main() {
   }
 
   for (final width in [390.0, 320.0]) {
+    testWidgets(
+      'Android conversation presence remains visible with unread at $width',
+      (tester) async {
+        final service = UiFixtureService();
+        final group = service.addGroupFixture();
+        service.peers['home']!.name = '家里的离线电脑与很长很长的设备名称';
+        await show(
+          tester,
+          fixtureService: service,
+          size: Size(width, 844),
+          scale: width == 320 ? 1.3 : 1,
+        );
+        await tab(tester, '消息');
+        String? presence(String id) => tester
+            .widget<Text>(find.byKey(ValueKey('conversation-presence-$id')))
+            .data;
+        expect(presence('laptop'), '在线');
+        expect(presence('home'), '离线');
+        expect(presence(group.conversationId), '3 人在线');
+        expect(
+          find.byKey(const ValueKey('conversation-time-laptop')),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(
+            of: find.byKey(const ValueKey('conversation-laptop')),
+            matching: find.byKey(const ValueKey('unread-badge')),
+          ),
+          findsOneWidget,
+        );
+        if (captureAndroid) {
+          await capture(tester, 'messages-presence-${width.toInt()}');
+        }
+        service.peers['laptop']!.online = false;
+        service.peers['studio']!.online = false;
+        service.emit();
+        await tester.pump();
+        expect(presence('laptop'), '离线');
+        expect(presence(group.conversationId), '仅你在线');
+        expect(tester.takeException(), isNull);
+      },
+    );
+
     testWidgets('Android device cleanup confirms at $width', (tester) async {
       final fixture = await show(
         tester,
