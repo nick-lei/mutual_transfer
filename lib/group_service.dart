@@ -426,7 +426,7 @@ extension GroupService on LanService {
       throw const FormatException('文件队列无效');
     }
     final targets = groupPeers(group);
-    var completedTargets = 0;
+    var rejectedTargets = 0, failedTargets = 0, cancelledTargets = 0;
     // Three concurrent receiver sessions avoid multiplying large-file disk reads without bound.
     for (var offset = 0; offset < targets.length; offset += 3) {
       await Future.wait(
@@ -438,10 +438,37 @@ extension GroupService on LanService {
               group.pendingSync.remove(peer.id);
             }
             final items = await _sendFileBatch(peer, files, groupId: group.id);
-            if (items.every((file) => file.status == TransferStatus.complete)) {
-              completedTargets++;
+            if (items.every((file) => file.status == TransferStatus.rejected)) {
+              rejectedTargets++;
+            } else if (items.any(
+              (file) => file.status == TransferStatus.failed,
+            )) {
+              failedTargets++;
+            } else if (items.any(
+              (file) => file.status == TransferStatus.cancelled,
+            )) {
+              cancelledTargets++;
+            } else if (items.any(
+              (file) => file.status != TransferStatus.complete,
+            )) {
+              failedTargets++;
             }
-          } catch (error) {
+          } catch (error, stack) {
+            failedTargets++;
+            log.warning(
+              'transfer',
+              'group_recipient_failed',
+              '群文件未能发送给该成员',
+              error: error,
+              stack: stack,
+              fields: {'groupId': group.id, 'peerId': peer.id},
+            );
+            final message = switch (error) {
+              TimeoutException() => '连接超时，请确认对方已打开邻传并处于同一局域网',
+              SocketException() => '无法连接该设备，请确认对方已打开邻传且网络可达',
+              FormatException() => error.message,
+              _ => '发送未完成，请稍后重试；详细原因见日志',
+            };
             transfers.insertAll(
               0,
               files.map(
@@ -456,16 +483,17 @@ extension GroupService on LanService {
                   sourcePath: file.path,
                   outgoing: true,
                   status: TransferStatus.failed,
-                )..error = '$error',
+                )..error = message,
               ),
             );
+            _notify(persist: true);
           }
         }),
       );
     }
     await _persist();
     _notify();
-    if (targets.isNotEmpty && completedTargets == targets.length) {
+    if (targets.isNotEmpty) {
       _emitTransferCompletion(
         TransferCompletion(
           id: newId(),
@@ -474,6 +502,9 @@ extension GroupService on LanService {
           fileCount: files.length,
           totalBytes: files.fold(0, (sum, file) => sum + file.size),
           recipientCount: targets.length,
+          rejectedRecipientCount: rejectedTargets,
+          failedRecipientCount: failedTargets,
+          cancelledRecipientCount: cancelledTargets,
         ),
       );
     }

@@ -228,6 +228,49 @@ void main() {
   }
 
   for (final width in [390.0, 320.0]) {
+    testWidgets('Android mixed group result fits $width and opens history', (
+      tester,
+    ) async {
+      final previousShadows = debugDisableShadows;
+      debugDisableShadows = false;
+      try {
+        final fixture = await show(
+          tester,
+          size: Size(width, 844),
+          scale: width == 320 ? 1.3 : 1,
+        );
+        const result = TransferCompletion(
+          id: 'android-mixed-group',
+          outgoing: true,
+          peerName: '跨端产品设计与开发文件交付协作小组',
+          fileCount: 14,
+          totalBytes: 1503238553,
+          recipientCount: 31,
+          rejectedRecipientCount: 10,
+          failedRecipientCount: 10,
+          cancelledRecipientCount: 1,
+        );
+        fixture.service.completionEvents.add(result);
+        await tester.pumpAndSettle();
+        expect(find.text('群文件发送结束'), findsOneWidget);
+        expect(find.text('全部发送完成'), findsNothing);
+        for (final label in ['完成 10 位', '拒收 10 位', '未完成 10 位', '已取消 1 位']) {
+          expect(find.text(label), findsOneWidget);
+        }
+        expect(tester.takeException(), isNull);
+        if (captureAndroid) {
+          await capture(tester, 'group-result-${width.toInt()}');
+        }
+        await tester.tap(find.byTooltip('查看记录'));
+        await tester.pumpAndSettle();
+        expect(find.text('搜索文件或设备'), findsOneWidget);
+      } finally {
+        debugDisableShadows = previousShadows;
+      }
+    });
+  }
+
+  for (final width in [390.0, 320.0]) {
     testWidgets('Android Send lists groups alongside devices at $width', (
       tester,
     ) async {

@@ -121,6 +121,34 @@ void main() {
   );
 
   test(
+    'mixed group outcome notifies once and respects completion settings',
+    () async {
+      const result = TransferCompletion(
+        id: 'group-mixed',
+        outgoing: true,
+        peerName: '设计协作',
+        fileCount: 2,
+        totalBytes: 100,
+        recipientCount: 2,
+        rejectedRecipientCount: 1,
+      );
+      service.completionEvents.add(result);
+      await settle();
+      expect(platform.completions, hasLength(1));
+      expect(platform.completions.single.completion.title, '群文件发送结束');
+      expect(
+        platform.completions.single.completion.summary,
+        '完成 1 位 · 拒收 1 位\n设计协作 · 2 个文件',
+      );
+      expect(platform.completions.single.sound, isTrue);
+      await controller.update(completionEnabled: false, completionSound: false);
+      service.completionEvents.add(result);
+      await settle();
+      expect(platform.completions, hasLength(1));
+    },
+  );
+
+  test(
     'completion preferences are independent, clear notices and do not replay',
     () async {
       service.completionEvents.add(completion('one'));

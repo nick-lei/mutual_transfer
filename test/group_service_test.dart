@@ -20,12 +20,17 @@ Future<void> until(bool Function() condition) async {
 void main() {
   late Directory root;
   late LanService a, b, c;
-  Future<LanService> start(String folder, {int port = 0}) async {
+  Future<LanService> start(
+    String folder, {
+    int port = 0,
+    Duration offerDecisionTimeout = const Duration(seconds: 90),
+  }) async {
     final service = LanService(
       dataDirectory: Directory(p.join(root.path, folder)),
       requestedPort: port,
       discoveryEnabled: false,
       initialName: folder,
+      offerDecisionTimeout: offerDecisionTimeout,
     );
     await service.start();
     expect(service.error, isNull);
@@ -266,34 +271,60 @@ void main() {
       final group = await create();
       final file = File(p.join(root.path, 'source.txt'));
       await file.writeAsString('group-file-content');
-      final send = a.sendGroupFiles(group, [
-        LocalFile(
-          path: file.path,
-          name: 'source.txt',
-          size: await file.length(),
-        ),
-      ]);
+      final second = File(p.join(root.path, 'second.txt'));
+      await second.writeAsString('another-group-file');
+      final send = a.sendGroupFiles(
+        group,
+        await LocalFile.fromPaths([file.path, second.path]),
+      );
       await until(() => b.incoming.isNotEmpty && c.incoming.isNotEmpty);
       expect(b.incoming.single.groupName, '设计协作');
       b.markMessagesRead();
       expect(b.incoming, hasLength(1));
-      b.decide(b.incoming.single, true);
       c.decide(c.incoming.single, false);
-      await send;
-      expect(b.transfers.single.status, TransferStatus.complete);
-      expect(b.transfers.single.groupId, group.id);
-      expect(
-        await File(b.transfers.single.savedPath!).readAsString(),
-        'group-file-content',
+      await until(
+        () => a.transfers
+            .where((f) => f.peerId == c.id)
+            .every((f) => f.status == TransferStatus.rejected),
       );
-      expect(c.transfers.single.status, TransferStatus.rejected);
+      expect(sent, isEmpty);
+      expect(b.incoming.single.decision.isCompleted, isFalse);
+      expect(
+        a.transfers.where((f) => f.peerId == b.id).every((f) => f.active),
+        true,
+      );
+      b.decide(b.incoming.single, true);
+      await send;
+      expect(b.transfers, hasLength(2));
+      for (final transfer in b.transfers) {
+        expect(transfer.status, TransferStatus.complete);
+        expect(transfer.groupId, group.id);
+        expect(
+          await File(transfer.savedPath!).readAsString(),
+          await File(p.join(root.path, transfer.name)).readAsString(),
+        );
+      }
+      expect(c.transfers, hasLength(2));
+      expect(
+        c.transfers.every((f) => f.status == TransferStatus.rejected),
+        true,
+      );
       expect(
         a.transfers.where((f) => f.status == TransferStatus.complete).length,
-        1,
+        2,
       );
       expect(a.transfers.every((f) => f.groupId == group.id), true);
-      await until(() => received.isNotEmpty);
-      expect(sent, isEmpty);
+      await until(() => sent.isNotEmpty && received.isNotEmpty);
+      expect(sent, hasLength(1));
+      final result = sent.single;
+      expect(result.recipientCount, 2);
+      expect(result.completedRecipientCount, 1);
+      expect(result.rejectedRecipientCount, 1);
+      expect(result.failedRecipientCount, 0);
+      expect(result.cancelledRecipientCount, 0);
+      expect(result.fileCount, 2);
+      expect(result.title, '群文件发送结束');
+      expect(result.summary, '完成 1 位 · 拒收 1 位\n设计协作 · 2 个文件');
       expect(received.single.outgoing, isFalse);
       await sentSubscription.cancel();
       await receivedSubscription.cancel();
@@ -326,9 +357,182 @@ void main() {
       expect(sent.single.recipientCount, 2);
       expect(sent.single.fileCount, 1);
       expect(sent.single.peerName, group.name);
+      expect(sent.single.completedRecipientCount, 2);
+      expect(sent.single.hasIssues, isFalse);
+      expect(sent.single.title, '全部发送完成');
       for (final subscription in subscriptions) {
         await subscription.cancel();
       }
     },
   );
+
+  for (final offline in [true, false]) {
+    test(
+      'unreachable member online=${!offline} does not fail another receiver',
+      () async {
+        final group = await create();
+        final sent = <TransferCompletion>[];
+        final subscription = a.completedTransfers.listen(sent.add);
+        addTearDown(subscription.cancel);
+        await c.close();
+        a.peers[c.id]!.online = !offline;
+        final file = File(p.join(root.path, 'reachable.txt'));
+        await file.writeAsString('still delivered');
+        final send = a.sendGroupFiles(
+          group,
+          await LocalFile.fromPaths([file.path]),
+        );
+        await until(
+          () =>
+              b.incoming.isNotEmpty &&
+              a.transfers.any((f) => f.status == TransferStatus.failed),
+        );
+        expect(sent, isEmpty);
+        final failed = a.transfers.singleWhere((f) => f.peerId == c.id);
+        expect(failed.error, contains('请确认对方已打开邻传'));
+        expect(failed.error, isNot(contains('SocketException')));
+        b.decide(b.incoming.single, true);
+        await send;
+        await until(() => sent.isNotEmpty);
+        expect(sent, hasLength(1));
+        expect(sent.single.completedRecipientCount, 1);
+        expect(sent.single.failedRecipientCount, 1);
+        expect(sent.single.rejectedRecipientCount, 0);
+        expect(sent.single.summary, '完成 1 位 · 未完成 1 位\n设计协作 · 1 个文件');
+        expect(b.transfers.single.status, TransferStatus.complete);
+        expect(
+          await File(b.transfers.single.savedPath!).readAsString(),
+          'still delivered',
+        );
+      },
+    );
+  }
+
+  test('unanswered offer counts as incomplete rather than a refusal', () async {
+    await c.close();
+    c = await start(
+      'member-c',
+      offerDecisionTimeout: const Duration(milliseconds: 100),
+    );
+    final group = await create();
+    final sent = <TransferCompletion>[];
+    final subscription = a.completedTransfers.listen(sent.add);
+    addTearDown(subscription.cancel);
+    final file = File(p.join(root.path, 'timeout.txt'));
+    await file.writeAsString('waiting for a decision');
+    final send = a.sendGroupFiles(
+      group,
+      await LocalFile.fromPaths([file.path]),
+    );
+    await until(
+      () =>
+          b.incoming.isNotEmpty &&
+          a.transfers.any(
+            (f) => f.peerId == c.id && f.status == TransferStatus.failed,
+          ),
+    );
+    expect(sent, isEmpty);
+    expect(c.incoming, isEmpty);
+    expect(c.transfers.single.status, TransferStatus.failed);
+    expect(c.transfers.single.error, '接收确认已超时');
+    expect(
+      a.transfers.singleWhere((f) => f.peerId == c.id).error,
+      '接收确认已超时，请重新发送',
+    );
+    b.decide(b.incoming.single, true);
+    await send;
+    await until(() => sent.isNotEmpty);
+    expect(sent.single.completedRecipientCount, 1);
+    expect(sent.single.failedRecipientCount, 1);
+    expect(sent.single.rejectedRecipientCount, 0);
+  });
+
+  test('all refusals settle once without claiming success', () async {
+    final group = await create();
+    final sent = <TransferCompletion>[];
+    final subscription = a.completedTransfers.listen(sent.add);
+    addTearDown(subscription.cancel);
+    final file = File(p.join(root.path, 'refused.txt'));
+    await file.writeAsString('refuse this');
+    final send = a.sendGroupFiles(
+      group,
+      await LocalFile.fromPaths([file.path]),
+    );
+    await until(() => b.incoming.isNotEmpty && c.incoming.isNotEmpty);
+    b.decide(b.incoming.single, false);
+    c.decide(c.incoming.single, false);
+    await send;
+    await until(() => sent.isNotEmpty);
+    expect(sent, hasLength(1));
+    expect(sent.single.completedRecipientCount, 0);
+    expect(sent.single.rejectedRecipientCount, 2);
+    expect(sent.single.failedRecipientCount, 0);
+    expect(sent.single.title, '群文件发送结束');
+    expect(a.transfers.every((f) => f.status == TransferStatus.rejected), true);
+  });
+
+  test(
+    'partially delivered files do not count a recipient as completed',
+    () async {
+      final group = await create();
+      final sent = <TransferCompletion>[];
+      final subscription = a.completedTransfers.listen(sent.add);
+      addTearDown(subscription.cancel);
+      final first = File(p.join(root.path, 'keep.txt'));
+      final missing = File(p.join(root.path, 'removed.txt'));
+      await first.writeAsString('keep the completed file');
+      await missing.writeAsString('removed before transmission');
+      final files = await LocalFile.fromPaths([first.path, missing.path]);
+      await missing.delete();
+      final send = a.sendGroupFiles(group, files);
+      await until(() => b.incoming.isNotEmpty && c.incoming.isNotEmpty);
+      b.decide(b.incoming.single, true);
+      c.decide(c.incoming.single, false);
+      await send;
+      await until(() => sent.isNotEmpty);
+      expect(sent, hasLength(1));
+      expect(sent.single.completedRecipientCount, 0);
+      expect(sent.single.failedRecipientCount, 1);
+      expect(sent.single.rejectedRecipientCount, 1);
+      expect(sent.single.title, '群文件发送结束');
+      final delivered = b.transfers.singleWhere((f) => f.name == 'keep.txt');
+      expect(delivered.status, TransferStatus.complete);
+      expect(
+        await File(delivered.savedPath!).readAsString(),
+        'keep the completed file',
+      );
+      expect(
+        a.transfers
+            .singleWhere((f) => f.peerId == b.id && f.name == 'removed.txt')
+            .status,
+        TransferStatus.failed,
+      );
+    },
+  );
+
+  test('cancelling one recipient leaves the other recipient active', () async {
+    final group = await create();
+    final sent = <TransferCompletion>[];
+    final subscription = a.completedTransfers.listen(sent.add);
+    addTearDown(subscription.cancel);
+    final file = File(p.join(root.path, 'cancel-one.txt'));
+    await file.writeAsString('keep the other recipient');
+    final send = a.sendGroupFiles(
+      group,
+      await LocalFile.fromPaths([file.path]),
+    );
+    await until(() => b.incoming.isNotEmpty && c.incoming.isNotEmpty);
+    a.cancel(a.transfers.singleWhere((f) => f.peerId == c.id));
+    expect(a.transfers.singleWhere((f) => f.peerId == b.id).active, true);
+    expect(b.incoming.single.decision.isCompleted, isFalse);
+    b.decide(b.incoming.single, true);
+    await send;
+    await until(() => sent.isNotEmpty);
+    expect(sent, hasLength(1));
+    expect(sent.single.completedRecipientCount, 1);
+    expect(sent.single.cancelledRecipientCount, 1);
+    expect(sent.single.failedRecipientCount, 0);
+    expect(sent.single.rejectedRecipientCount, 0);
+    expect(b.transfers.single.status, TransferStatus.complete);
+  });
 }

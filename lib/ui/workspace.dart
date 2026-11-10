@@ -227,6 +227,29 @@ class _WorkspaceState extends State<Workspace> {
         widget.android?.foreground == false) {
       return;
     }
+    final historyAction = IconButton(
+      tooltip: '查看记录',
+      color: blue,
+      onPressed: () {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        _navigate(3);
+      },
+      icon: const Icon(LucideIcons.history, size: 20),
+    );
+    final closeAction = IconButton(
+      tooltip: '关闭',
+      color: muted,
+      onPressed: () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+      icon: const Icon(LucideIcons.x, size: 18),
+    );
+    final title = Text(
+      completion.title,
+      style: const TextStyle(
+        fontSize: 14,
+        fontWeight: FontWeight.w600,
+        color: ink,
+      ),
+    );
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         key: ValueKey('transfer-completion-${completion.id}'),
@@ -234,51 +257,83 @@ class _WorkspaceState extends State<Workspace> {
         elevation: 6,
         duration: const Duration(seconds: 6),
         width: MediaQuery.sizeOf(context).width > 680 ? 560 : null,
-        content: Row(
-          children: [
-            const Icon(LucideIcons.circleCheck, color: green, size: 22),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
+        content: completion.hasIssues
+            ? Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    completion.title,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: ink,
+                  Row(
+                    children: [
+                      const Icon(
+                        LucideIcons.circleAlert,
+                        color: amber,
+                        size: 22,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(child: title),
+                      closeAction,
+                    ],
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 34),
+                    child: Wrap(
+                      spacing: 16,
+                      runSpacing: 4,
+                      children: [
+                        for (final result in completion.recipientResults)
+                          Text(
+                            result,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: ink,
+                              height: 1.6,
+                            ),
+                          ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    completion.summary,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 12, color: muted),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 34),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            '${completion.fileCount} 个文件 · ${completion.peerName}',
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 12, color: muted),
+                          ),
+                        ),
+                        historyAction,
+                      ],
+                    ),
                   ),
                 ],
+              )
+            : Row(
+                children: [
+                  const Icon(LucideIcons.circleCheck, color: green, size: 22),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        title,
+                        const SizedBox(height: 4),
+                        Text(
+                          completion.summary,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 12, color: muted),
+                        ),
+                      ],
+                    ),
+                  ),
+                  historyAction,
+                  closeAction,
+                ],
               ),
-            ),
-            IconButton(
-              tooltip: '查看记录',
-              color: blue,
-              onPressed: () {
-                ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                _navigate(3);
-              },
-              icon: const Icon(LucideIcons.history, size: 20),
-            ),
-            IconButton(
-              tooltip: '关闭',
-              color: muted,
-              onPressed: () =>
-                  ScaffoldMessenger.of(context).hideCurrentSnackBar(),
-              icon: const Icon(LucideIcons.x, size: 18),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -2941,7 +2996,7 @@ class _WorkspaceState extends State<Workspace> {
             const Text('让文件和想法，在身边自由流动。', style: TextStyle(fontSize: 14)),
             const SizedBox(height: 8),
             const Text(
-              'Windows · v0.3.5\n明亮外观 · 活力蓝',
+              'Windows · v0.3.6\n明亮外观 · 活力蓝',
               style: TextStyle(fontSize: 12, height: 1.8, color: muted),
             ),
           ],

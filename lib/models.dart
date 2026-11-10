@@ -219,17 +219,48 @@ class TransferCompletion {
     required this.fileCount,
     required this.totalBytes,
     this.recipientCount = 1,
+    this.rejectedRecipientCount = 0,
+    this.failedRecipientCount = 0,
+    this.cancelledRecipientCount = 0,
   });
 
   final String id, peerName;
   final bool outgoing;
   final int fileCount, totalBytes, recipientCount;
+  final int rejectedRecipientCount,
+      failedRecipientCount,
+      cancelledRecipientCount;
 
-  String get title => outgoing ? '全部发送完成' : '接收完成';
-  String get summary =>
-      '${outgoing ? '已发送给' : '来自'} $peerName'
-      '${recipientCount > 1 ? ' · $recipientCount 位成员' : ''}'
-      ' · $fileCount 个文件 · ${formatBytes(totalBytes)}';
+  int get completedRecipientCount =>
+      recipientCount -
+      rejectedRecipientCount -
+      failedRecipientCount -
+      cancelledRecipientCount;
+  bool get hasIssues =>
+      rejectedRecipientCount + failedRecipientCount + cancelledRecipientCount >
+      0;
+
+  String get title => hasIssues
+      ? '群文件发送结束'
+      : outgoing
+      ? '全部发送完成'
+      : '接收完成';
+  List<String> get recipientResults => [
+    '完成 $completedRecipientCount 位',
+    if (rejectedRecipientCount > 0) '拒收 $rejectedRecipientCount 位',
+    if (failedRecipientCount > 0) '未完成 $failedRecipientCount 位',
+    if (cancelledRecipientCount > 0) '已取消 $cancelledRecipientCount 位',
+  ];
+  String get recipientSummary => recipientResults.join(' · ');
+
+  String get summary {
+    if (hasIssues) {
+      return '$recipientSummary\n$peerName · $fileCount 个文件';
+    }
+    return '${outgoing ? '已发送给' : '来自'} $peerName'
+        '${recipientCount > 1 ? ' · $recipientCount 位成员' : ''}'
+        ' · $fileCount 个文件 · ${formatBytes(totalBytes)}';
+  }
 }
 
 class ChatMessage {

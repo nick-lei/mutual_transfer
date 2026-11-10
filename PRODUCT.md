@@ -91,8 +91,11 @@ accepted it, and where a received file is saved.
 - Batch completion reminders for both sending and receiving. Foreground completion
   prompts use the existing theme and open transfer history; background native
   notifications open the same destination. Reminders require every file to complete
-  integrity checks and publication. Group senders get one aggregate only after all
-  recipients succeed. Failed, cancelled or rejected batches never claim success.
+  integrity checks and publication. Group senders get one aggregate after every
+  recipient settles, with separate completed, rejected, incomplete and cancelled
+  member counts. Each recipient's outcome is independent; mixed results use an
+  amber notice and never claim that all files were sent. Direct send/receive
+  success notices still require the entire batch to complete.
   Successful retries create new reminders; old history is never replayed. Completion
   notices and sound have independent persisted settings, with sound burst throttling.
 - Persisted local unread message counts shared by full/compact navigation,

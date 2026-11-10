@@ -59,6 +59,7 @@ class LanService {
     this.initialSaveDirectory,
     this.streamingIntegrityEnabled = true,
     this.commitTimeout = const Duration(minutes: 2),
+    this.offerDecisionTimeout = const Duration(seconds: 90),
     AppLog? log,
   }) : log = log ?? AppLog(dataDirectory),
        _ownsLog = log == null;
@@ -70,6 +71,7 @@ class LanService {
   final String? initialSaveDirectory;
   final bool streamingIntegrityEnabled;
   final Duration commitTimeout;
+  final Duration offerDecisionTimeout;
   final AppLog log;
   final bool _ownsLog;
   final Map<String, _PendingReceive> _pendingReceives = {};
@@ -849,9 +851,11 @@ class LanService {
       },
     );
     _notify(persist: true);
+    var timedOut = false;
     final accepted = await offer.decision.future.timeout(
-      const Duration(seconds: 90),
+      offerDecisionTimeout,
       onTimeout: () {
+        timedOut = true;
         if (!offer.decision.isCompleted) offer.decision.complete(false);
         return false;
       },
@@ -861,19 +865,30 @@ class LanService {
     offer.lastActivity = DateTime.now();
     if (!accepted) {
       for (final file in items.where((f) => f.active)) {
-        file.status = TransferStatus.rejected;
+        file.status = timedOut
+            ? TransferStatus.failed
+            : TransferStatus.rejected;
+        if (timedOut) file.error = '接收确认已超时';
       }
     }
     log.info(
       'transfer',
       'offer_resolved',
-      accepted ? '接收请求已同意' : '接收请求已拒绝或超时',
-      fields: {'offerId': offer.id, 'accepted': accepted},
+      accepted
+          ? '接收请求已同意'
+          : timedOut
+          ? '接收确认已超时'
+          : '接收请求已拒绝',
+      fields: {'offerId': offer.id, 'accepted': accepted, 'timedOut': timedOut},
     );
     _notify(persist: true);
     await _json(
       request.response,
-      accepted ? 200 : 409,
+      accepted
+          ? 200
+          : timedOut
+          ? 408
+          : 409,
       accepted
           ? {
               'token': offer.token,
@@ -881,7 +896,7 @@ class LanService {
                 if (streamingIntegrityEnabled) streamingIntegrity,
               ],
             }
-          : {'error': '对方已拒绝或接收确认已超时'},
+          : {'error': timedOut ? '接收确认已超时，请重新发送' : '对方已拒绝接收'},
     );
   }
 
@@ -1269,7 +1284,7 @@ class LanService {
     _completedTransfers.add(completion);
     log.info(
       'transfer',
-      'batch_complete',
+      completion.hasIssues ? 'batch_settled' : 'batch_complete',
       completion.title,
       fields: {
         'batchId': completion.id,
@@ -1277,6 +1292,10 @@ class LanService {
         'fileCount': completion.fileCount,
         'bytes': completion.totalBytes,
         'recipients': completion.recipientCount,
+        'completedRecipients': completion.completedRecipientCount,
+        'rejectedRecipients': completion.rejectedRecipientCount,
+        'failedRecipients': completion.failedRecipientCount,
+        'cancelledRecipients': completion.cancelledRecipientCount,
       },
     );
   }
@@ -1398,7 +1417,12 @@ class LanService {
           ..status = _cancelled.contains(item.id)
               ? TransferStatus.cancelled
               : TransferStatus.failed
-          ..error = e is FormatException ? e.message : '连接中断：$e';
+          ..error = switch (e) {
+            FormatException() => e.message,
+            TimeoutException() => '连接超时，请确认对方已打开邻传并处于同一局域网',
+            SocketException() => '连接中断，请确认对方已打开邻传且网络可达',
+            _ => '连接中断：$e',
+          };
       }
       if (offerSubmitted && endpoint != null) {
         unawaited(_cancelRemote(endpoint, offerId));
