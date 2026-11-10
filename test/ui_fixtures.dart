@@ -217,3 +217,30 @@ class UiFixtureService extends LanService {
     await events.close();
   }
 }
+
+class ForwardFileFixtureService extends UiFixtureService {
+  ForwardFileFixtureService() : super(populated: false);
+
+  @override
+  Future<void> sendFiles(
+    Peer peer,
+    List<LocalFile> files, {
+    String? groupId,
+  }) async {
+    await super.sendFiles(peer, files, groupId: groupId);
+    transfers.insertAll(0, [
+      for (final file in files)
+        TransferItem(
+          id: newId(),
+          peerId: peer.id,
+          peerName: peer.name,
+          name: file.name,
+          size: file.size,
+          outgoing: true,
+          sourcePath: file.path,
+          groupId: groupId,
+        ),
+    ]);
+    emit();
+  }
+}

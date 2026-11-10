@@ -49,6 +49,16 @@ accepted it, and where a received file is saved.
   with real progress, speed, explicit receiving decisions, cancellation, retry and
   completed-file actions. Group cards identify each member's result. File cards
   use local transfer history and share its retention and clearing behavior.
+- Completed chat files can be forwarded from their local source/received path.
+  Desktop two-pane chats support dragging a file card onto another conversation;
+  Android tablets support long-press dragging. Target feedback distinguishes
+  available and unavailable destinations. A forward icon provides an alternative:
+  Android opens a full-page searchable recipient selector with explicit confirmation,
+  while desktop uses a compact selector. Forwarding opens the destination chat
+  with the existing progress and receiving-confirmation flow, preserving drafts
+  and the separate Send queue. Missing files, offline destinations, active
+  transfers and dropping back on the source conversation cannot start a forward.
+  Viewing the recipient selector does not consume messages in the covered chat.
 - Group membership updates retry every 30 seconds and manually; offline messages
   are not queued for automatic delivery. Local leaving persists even if the owner
   is offline. Removed/dissolved group history remains readable. Existing members

@@ -132,6 +132,185 @@ void main() {
     await service.close();
   }
 
+  Future<TransferItem> forwardFileFixture(
+    WidgetTester tester,
+    UiFixtureService service,
+  ) async {
+    late Directory directory;
+    late File file;
+    await tester.runAsync(() async {
+      directory = await Directory.systemTemp.createTemp('nearlink-forward-ui-');
+      file = await File(
+        '${directory.path}/项目文件.txt',
+      ).writeAsString('forward fixture');
+    });
+    addTearDown(() => tester.runAsync(() => directory.delete(recursive: true)));
+    final transfer = TransferItem(
+      id: 'forward-original',
+      peerId: 'laptop',
+      peerName: service.peers['laptop']!.name,
+      name: '项目文件.txt',
+      size: 15,
+      outgoing: false,
+      status: TransferStatus.complete,
+    )..savedPath = file.path;
+    service.transfers.add(transfer);
+    return transfer;
+  }
+
+  Future<void> flushForwarding(WidgetTester tester) async {
+    for (var i = 0; i < 12; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 10)),
+      );
+      await tester.pump(const Duration(milliseconds: 40));
+    }
+  }
+
+  Future<TestGesture> dragChatFile(WidgetTester tester, String targetId) async {
+    final source = find.byKey(const ValueKey('chat-file-forward-original'));
+    final gesture = await tester.startGesture(
+      tester.getTopLeft(source) + const Offset(30, 30),
+      kind: PointerDeviceKind.mouse,
+    );
+    await gesture.moveBy(const Offset(-30, 0));
+    await tester.pump();
+    await gesture.moveTo(
+      tester.getCenter(find.byKey(ValueKey('forward-target-$targetId'))),
+    );
+    await tester.pump(const Duration(milliseconds: 250));
+    return gesture;
+  }
+
+  for (final groupTarget in [false, true]) {
+    testWidgets(
+      'chat file ${groupTarget ? 'group target accepts hover and allows cancellation' : 'drag forwards to device without Send page'}',
+      (tester) async {
+        final previousShadows = debugDisableShadows;
+        if (captureUi) {
+          debugDisableShadows = false;
+          addTearDown(() => debugDisableShadows = previousShadows);
+        }
+        final service = ForwardFileFixtureService();
+        final file = await forwardFileFixture(tester, service);
+        final group = groupTarget ? service.addGroupFixture() : null;
+        final targetId = group?.conversationId ?? 'studio';
+        await show(tester, service);
+        await navigate(tester, 2);
+        await tester.tap(find.byKey(const ValueKey('conversation-laptop')));
+        await tester.pump(const Duration(milliseconds: 350));
+        await tester.enterText(
+          find.byKey(const ValueKey('message-input')),
+          '保留原会话草稿',
+        );
+        final gesture = await dragChatFile(tester, targetId);
+        expect(find.byKey(ValueKey('forward-hover-$targetId')), findsOneWidget);
+        expect(
+          find.byKey(const ValueKey('chat-file-drag-preview')),
+          findsOneWidget,
+        );
+        if (groupTarget) {
+          await gesture.moveTo(const Offset(20, 20));
+          await gesture.up();
+          await flushForwarding(tester);
+          expect(service.sentBatches, isEmpty);
+          debugDisableShadows = previousShadows;
+          await finish(tester, service);
+          return;
+        }
+        if (!groupTarget) await capture(tester, 'chat-forward-drag-desktop');
+        await gesture.up();
+        await flushForwarding(tester);
+        expect(service.sentBatches, hasLength(1));
+        for (final batch in service.sentBatches) {
+          expect(batch.files.single.path, file.savedPath);
+          expect(batch.files.single.name, file.name);
+          expect(batch.files.single.size, 15);
+        }
+        expect(service.sentBatches.single.peerId, 'studio');
+        expect(find.byKey(ValueKey('messages-$targetId')), findsOneWidget);
+        expect(
+          find.byKey(ValueKey('chat-progress-${service.transfers.first.id}')),
+          findsOneWidget,
+        );
+        expect(find.byKey(const ValueKey('send-files')), findsNothing);
+        if (!groupTarget) {
+          await capture(tester, 'chat-forward-progress-desktop');
+        }
+        await tester.tap(find.byKey(const ValueKey('conversation-laptop')));
+        await tester.pump();
+        expect(
+          tester
+              .widget<TextField>(find.byKey(const ValueKey('message-input')))
+              .controller!
+              .text,
+          '保留原会话草稿',
+        );
+        expect(tester.takeException(), isNull);
+        debugDisableShadows = previousShadows;
+        await finish(tester, service);
+      },
+    );
+  }
+
+  testWidgets(
+    'chat file drag rejects offline and original conversations and cancelling sends nothing',
+    (tester) async {
+      final service = ForwardFileFixtureService();
+      await forwardFileFixture(tester, service);
+      await show(tester, service);
+      await navigate(tester, 2);
+      await tester.tap(find.byKey(const ValueKey('conversation-laptop')));
+      await tester.pump(const Duration(milliseconds: 350));
+      for (final id in ['home', 'laptop']) {
+        final gesture = await dragChatFile(tester, id);
+        await gesture.up();
+        await flushForwarding(tester);
+        expect(service.sentBatches, isEmpty);
+      }
+      final gesture = await dragChatFile(tester, 'studio');
+      await gesture.moveTo(const Offset(20, 20));
+      await gesture.up();
+      await flushForwarding(tester);
+      expect(service.sentBatches, isEmpty);
+      expect(find.byKey(const ValueKey('messages-laptop')), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await finish(tester, service);
+    },
+  );
+
+  for (final missingFile in [true, false]) {
+    testWidgets(
+      'chat file drop rechecks ${missingFile ? 'deleted file' : 'recipient going offline'}',
+      (tester) async {
+        final service = ForwardFileFixtureService();
+        final file = await forwardFileFixture(tester, service);
+        await show(tester, service);
+        await navigate(tester, 2);
+        await tester.tap(find.byKey(const ValueKey('conversation-laptop')));
+        await tester.pump(const Duration(milliseconds: 350));
+        final gesture = await dragChatFile(tester, 'studio');
+        if (missingFile) {
+          await tester.runAsync(() => File(file.savedPath!).delete());
+        }
+        await gesture.up();
+        if (!missingFile) {
+          service.peers['studio']!.online = false;
+          service.emit();
+        }
+        await flushForwarding(tester);
+        expect(service.sentBatches, isEmpty);
+        expect(
+          find.text(missingFile ? '文件已被移动或删除，无法转发' : '目标设备当前不可用，请选择其他在线设备'),
+          findsOneWidget,
+        );
+        expect(find.byKey(const ValueKey('messages-laptop')), findsOneWidget);
+        expect(tester.takeException(), isNull);
+        await finish(tester, service);
+      },
+    );
+  }
+
   for (final width in [1440.0, 440.0]) {
     testWidgets('device cleanup previews, cancels and confirms at $width', (
       tester,

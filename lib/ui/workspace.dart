@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:path/path.dart' as p;
@@ -24,6 +25,7 @@ import 'desktop_title_bar.dart';
 part 'group_workspace.dart';
 part 'android_workspace.dart';
 part 'chat_files.dart';
+part 'chat_forward_page.dart';
 
 class Workspace extends StatefulWidget {
   const Workspace({
@@ -70,6 +72,7 @@ class _WorkspaceState extends State<Workspace> {
   bool _dragging = false, _picking = false, _incomingExpanded = false;
   bool _saving = false, _settingsDirty = false;
   bool _pickingChat = false;
+  bool _choosingForward = false;
   void _setPickingChat(bool picking) => setState(() => _pickingChat = picking);
   String _directory = '';
   String? _settingsError;
@@ -311,7 +314,9 @@ class _WorkspaceState extends State<Workspace> {
 
   void _syncMessageView() => service.setMessageView(
     _page == 2 ? _chatPeerId : null,
-    focused: widget.android?.foreground ?? widget.desktop?.isForeground ?? true,
+    focused:
+        !_choosingForward &&
+        (widget.android?.foreground ?? widget.desktop?.isForeground ?? true),
   );
 
   void _openConversation(Peer peer) {
@@ -2200,69 +2205,72 @@ class _WorkspaceState extends State<Workspace> {
                           final draft = _drafts[peer.id] ?? '';
                           final active = _chatPeerId == peer.id;
                           final unread = _unreadFor(peer.id);
-                          return Material(
-                            color: active ? blueTint : Colors.transparent,
-                            borderRadius: BorderRadius.circular(12),
-                            child: InkWell(
-                              key: ValueKey('conversation-${peer.id}'),
+                          return _conversationFileTarget(
+                            peer,
+                            Material(
+                              color: active ? blueTint : Colors.transparent,
                               borderRadius: BorderRadius.circular(12),
-                              onTap: () => _openConversation(peer),
-                              onLongPress: widget.android != null
-                                  ? () => _androidDeviceActions(peer)
-                                  : null,
-                              onSecondaryTapUp:
-                                  service.peers.containsKey(peer.id)
-                                  ? (details) => unawaited(
-                                      _showDeviceContextMenu(
-                                        peer,
-                                        details.globalPosition,
-                                      ),
-                                    )
-                                  : null,
-                              child: Padding(
-                                padding: const EdgeInsets.all(12),
-                                child: Row(
-                                  children: [
-                                    _conversationAvatar(peer, active: active),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            peer.displayName,
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: const TextStyle(
-                                              fontSize: 13,
-                                              fontWeight: FontWeight.w600,
+                              child: InkWell(
+                                key: ValueKey('conversation-${peer.id}'),
+                                borderRadius: BorderRadius.circular(12),
+                                onTap: () => _openConversation(peer),
+                                onLongPress: widget.android != null
+                                    ? () => _androidDeviceActions(peer)
+                                    : null,
+                                onSecondaryTapUp:
+                                    service.peers.containsKey(peer.id)
+                                    ? (details) => unawaited(
+                                        _showDeviceContextMenu(
+                                          peer,
+                                          details.globalPosition,
+                                        ),
+                                      )
+                                    : null,
+                                child: Padding(
+                                  padding: const EdgeInsets.all(12),
+                                  child: Row(
+                                    children: [
+                                      _conversationAvatar(peer, active: active),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              peer.displayName,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: const TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w600,
+                                              ),
                                             ),
-                                          ),
-                                          const SizedBox(height: 5),
-                                          Text(
-                                            draft.isNotEmpty
-                                                ? '草稿 · $draft'
-                                                : summary.preview,
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              color: draft.isNotEmpty
-                                                  ? blue
-                                                  : active
-                                                  ? const Color(0xff53617a)
-                                                  : muted,
+                                            const SizedBox(height: 5),
+                                            Text(
+                                              draft.isNotEmpty
+                                                  ? '草稿 · $draft'
+                                                  : summary.preview,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: draft.isNotEmpty
+                                                    ? blue
+                                                    : active
+                                                    ? const Color(0xff53617a)
+                                                    : muted,
+                                              ),
                                             ),
-                                          ),
-                                        ],
+                                          ],
+                                        ),
                                       ),
-                                    ),
-                                    if (unread > 0) ...[
-                                      const SizedBox(width: 6),
-                                      _badge(unread),
+                                      if (unread > 0) ...[
+                                        const SizedBox(width: 6),
+                                        _badge(unread),
+                                      ],
                                     ],
-                                  ],
+                                  ),
                                 ),
                               ),
                             ),
@@ -2445,7 +2453,10 @@ class _WorkspaceState extends State<Workspace> {
                                     message.delivery != 'delivered',
                               )
                             else
-                              _chatFileBubble(entry.file!),
+                              _chatFileBubble(
+                                entry.file!,
+                                allowDrag: !showBack,
+                              ),
                           ],
                         );
                       },
@@ -2905,7 +2916,7 @@ class _WorkspaceState extends State<Workspace> {
             const Text('让文件和想法，在身边自由流动。', style: TextStyle(fontSize: 14)),
             const SizedBox(height: 8),
             const Text(
-              'Windows · v0.3.2\n明亮外观 · 活力蓝',
+              'Windows · v0.3.3\n明亮外观 · 活力蓝',
               style: TextStyle(fontSize: 12, height: 1.8, color: muted),
             ),
           ],

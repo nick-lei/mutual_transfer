@@ -285,6 +285,271 @@ void main() {
     return file;
   }
 
+  for (final width in [390.0, 320.0]) {
+    for (final outgoing in [false, true]) {
+      testWidgets(
+        'Android forwards ${outgoing ? 'sent' : 'received'} chat file at $width',
+        (tester) async {
+          final file = await pickerFile(tester);
+          final service = ForwardFileFixtureService();
+          final original = TransferItem(
+            id: 'forward-original',
+            peerId: 'laptop',
+            peerName: '我的笔记本',
+            name: '项目说明.txt',
+            size: 17,
+            outgoing: outgoing,
+            sourcePath: outgoing ? file.path : null,
+            status: TransferStatus.complete,
+          )..savedPath = outgoing ? null : file.path;
+          service.transfers.add(original);
+          await show(
+            tester,
+            fixtureService: service,
+            size: Size(width, 844),
+            scale: width == 320 ? 1.3 : 1,
+          );
+          await tab(tester, '消息');
+          await tester.tap(find.byKey(const ValueKey('conversation-laptop')));
+          await tester.pump(const Duration(milliseconds: 350));
+          await tester.enterText(
+            find.byKey(const ValueKey('message-input')),
+            '转发时保留的草稿',
+          );
+          await tester.tap(
+            find.byKey(const ValueKey('forward-file-forward-original')),
+          );
+          await tester.pumpAndSettle();
+          expect(
+            find.byKey(const ValueKey('forward-recipient-laptop')),
+            findsNothing,
+          );
+          expect(
+            tester
+                .widget<ListTile>(
+                  find.byKey(const ValueKey('forward-recipient-home')),
+                )
+                .enabled,
+            isFalse,
+          );
+          expect(
+            find.byKey(const ValueKey('forward-file-page')),
+            findsOneWidget,
+          );
+          expect(find.byType(AlertDialog), findsNothing);
+          expect(tester.takeException(), isNull);
+          await tester.tap(
+            find.byKey(const ValueKey('forward-recipient-studio')),
+          );
+          await tester.pump();
+          expect(service.sentBatches, isEmpty);
+          if (captureAndroid && !outgoing) {
+            await capture(tester, 'chat-forward-page-${width.toInt()}');
+          }
+          await tester.tap(find.byKey(const ValueKey('forward-send')));
+          await flushFiles(tester);
+          expect(service.sentBatches.single.peerId, 'studio');
+          expect(service.sentBatches.single.files.single.path, file.path);
+          expect(service.sentBatches.single.files.single.name, original.name);
+          expect(find.byKey(const ValueKey('messages-studio')), findsOneWidget);
+          expect(
+            find.byKey(ValueKey('chat-progress-${service.transfers.first.id}')),
+            findsOneWidget,
+          );
+          expect(find.byType(NavigationBar), findsNothing);
+          if (captureAndroid && !outgoing) {
+            await capture(tester, 'chat-forward-progress-${width.toInt()}');
+          }
+          await tester.binding.handlePopRoute();
+          await tester.pump();
+          await tester.tap(find.byKey(const ValueKey('conversation-laptop')));
+          await tester.pump();
+          expect(
+            tester
+                .widget<TextField>(find.byKey(const ValueKey('message-input')))
+                .controller!
+                .text,
+            '转发时保留的草稿',
+          );
+          expect(tester.takeException(), isNull);
+        },
+      );
+    }
+  }
+
+  testWidgets(
+    'forward page tracks availability and back preserves chat and unread state',
+    (tester) async {
+      final service = ForwardFileFixtureService();
+      final file = await pickerFile(tester);
+      service.transfers.add(
+        TransferItem(
+          id: 'forward-original',
+          peerId: 'laptop',
+          peerName: '我的笔记本',
+          name: '项目说明.txt',
+          size: 17,
+          outgoing: false,
+          status: TransferStatus.complete,
+        )..savedPath = file.path,
+      );
+      await show(tester, fixtureService: service);
+      await tab(tester, '消息');
+      await tester.tap(find.byKey(const ValueKey('conversation-laptop')));
+      await tester.pump(const Duration(milliseconds: 350));
+      await tester.tap(
+        find.byKey(const ValueKey('forward-file-forward-original')),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('forward-recipient-studio')));
+      await tester.pump();
+      service.peers['studio']!.online = false;
+      service.messages.add(
+        ChatMessage(
+          id: 'while-forwarding',
+          peerId: 'laptop',
+          text: '新消息',
+          outgoing: false,
+        ),
+      );
+      service.emit();
+      await tester.pump();
+      expect(
+        tester
+            .widget<ListTile>(
+              find.byKey(const ValueKey('forward-recipient-studio')),
+            )
+            .enabled,
+        isFalse,
+      );
+      expect(
+        tester
+            .widget<FilledButton>(find.byKey(const ValueKey('forward-send')))
+            .onPressed,
+        isNull,
+      );
+      expect(service.unreadFor('laptop'), 1);
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(service.sentBatches, isEmpty);
+      expect(find.byKey(const ValueKey('messages-laptop')), findsOneWidget);
+      expect(service.unreadFor('laptop'), 0);
+      expect(tester.takeException(), isNull);
+      await tester.pump(const Duration(seconds: 1));
+    },
+  );
+
+  testWidgets('forward page searches remarks across a long recipient list', (
+    tester,
+  ) async {
+    final service = ForwardFileFixtureService();
+    final file = await pickerFile(tester);
+    service.peers['studio']!.remark = '特别备注';
+    for (var i = 0; i < 25; i++) {
+      service.peers['extra-$i'] = Peer(
+        id: 'extra-$i',
+        name: '设备 $i',
+        host: '127.0.0.1',
+        port: 1,
+      );
+    }
+    service.transfers.add(
+      TransferItem(
+        id: 'forward-original',
+        peerId: 'laptop',
+        peerName: '我的笔记本',
+        name: '项目说明.txt',
+        size: 17,
+        outgoing: false,
+        status: TransferStatus.complete,
+      )..savedPath = file.path,
+    );
+    await show(
+      tester,
+      fixtureService: service,
+      size: const Size(320, 700),
+      scale: 1.3,
+    );
+    await tab(tester, '消息');
+    await tester.tap(find.byKey(const ValueKey('conversation-laptop')));
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.tap(
+      find.byKey(const ValueKey('forward-file-forward-original')),
+    );
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('forward-recipient-search')),
+      '特别备注',
+    );
+    await tester.pump();
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('forward-recipient-studio')),
+        matching: find.text('特别备注'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('forward-recipient-extra-0')),
+      findsNothing,
+    );
+    await tester.tap(find.byKey(const ValueKey('forward-recipient-studio')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('forward-send')));
+    await flushFiles(tester);
+    expect(service.sentBatches.single.peerId, 'studio');
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'Android tablet long press drags a file to another conversation',
+    (tester) async {
+      final service = ForwardFileFixtureService();
+      final file = await pickerFile(tester);
+      service.transfers.add(
+        TransferItem(
+          id: 'forward-original',
+          peerId: 'laptop',
+          peerName: '我的笔记本',
+          name: '项目说明.txt',
+          size: 17,
+          outgoing: false,
+          status: TransferStatus.complete,
+        )..savedPath = file.path,
+      );
+      await show(tester, fixtureService: service, size: const Size(1024, 768));
+      await tester.tap(
+        find.descendant(
+          of: find.byType(NavigationRail),
+          matching: find.text('消息'),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 350));
+      await tester.tap(find.byKey(const ValueKey('conversation-laptop')));
+      await tester.pump(const Duration(milliseconds: 350));
+      final gesture = await tester.startGesture(
+        tester.getTopLeft(
+              find.byKey(const ValueKey('chat-file-forward-original')),
+            ) +
+            const Offset(30, 30),
+      );
+      await tester.pump(const Duration(milliseconds: 600));
+      await gesture.moveTo(
+        tester.getCenter(find.byKey(const ValueKey('forward-target-studio'))),
+      );
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(
+        find.byKey(const ValueKey('forward-hover-studio')),
+        findsOneWidget,
+      );
+      await gesture.up();
+      await flushFiles(tester);
+      expect(service.sentBatches.single.peerId, 'studio');
+      expect(find.byKey(const ValueKey('messages-studio')), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets(
     'chat picks files directly, preserves drafts and the send queue',
     (tester) async {

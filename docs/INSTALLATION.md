@@ -2,7 +2,7 @@
 
 ## 安装与卸载
 
-双击 `NearLink-0.3.2-windows-x64-Setup.exe`。安装向导提供简体中文与英文，默认安装到 `%LOCALAPPDATA%\Programs\NearLink`，可修改目录。安装仅针对当前 Windows 用户，不申请管理员权限。
+双击 `NearLink-0.3.3-windows-x64-Setup.exe`。安装向导提供简体中文与英文，默认安装到 `%LOCALAPPDATA%\Programs\NearLink`，可修改目录。安装仅针对当前 Windows 用户，不申请管理员权限。
 
 安装创建开始菜单的程序和卸载入口，并提供桌面快捷方式选项。完成页可立即运行邻传。系统「设置 → 应用 → 已安装的应用」中也会注册「邻传 NearLink」。运行所需的 Flutter 文件、插件与 Visual C++ 运行库随安装包提供。
 
@@ -28,8 +28,8 @@ Windows 和 Android 的「设备」页面提供垃圾桶图标，提示为「清
 
 ```powershell
 flutter build windows --release --no-pub
-.\tool\package_windows.ps1 -Version 0.3.2
-.\tool\build_installer.ps1 -Version 0.3.2 -PrepareCompiler
+.\tool\package_windows.ps1 -Version 0.3.3
+.\tool\build_installer.ps1 -Version 0.3.3 -PrepareCompiler
 ```
 
 `tool/prepare_installer.ps1` 固定使用官方 Inno Setup 7.1.1 x64，下载路径为 GitHub 的 `jrsoftware/issrc` 官方发布页，验证 SHA-256 与 Authenticode 签名后准备到项目的 `build/installer-tools`。若已安装编译器，可通过 `-CompilerPath` 指定 `ISCC.exe`，也可使用 PATH 中的编译器。
@@ -38,8 +38,8 @@ flutter build windows --release --no-pub
 
 产物：
 
-- `outputs/NearLink-0.3.2-windows-x64-Setup.exe`：可点击安装版。
-- `outputs/NearLink-0.3.2-windows-x64.zip`：便携版。
+- `outputs/NearLink-0.3.3-windows-x64-Setup.exe`：可点击安装版。
+- `outputs/NearLink-0.3.3-windows-x64.zip`：便携版。
 
 当前安装包未配置发布者代码签名。签名发布需要正式证书和签名流程；下载来源信誉和不同电脑上的系统提示不属于本机安装测试的保证范围。
 

@@ -332,86 +332,90 @@ extension _AndroidWorkspace on _WorkspaceState {
               final summary = _conversationSummary(peer);
               final draft = _drafts[peer.id] ?? '';
               final count = _unreadFor(peer.id);
-              return Material(
-                color: active ? blueTint : Colors.white,
-                borderRadius: BorderRadius.circular(8),
-                child: InkWell(
-                  key: ValueKey('conversation-${peer.id}'),
+              return _conversationFileTarget(
+                peer,
+                Material(
+                  color: active ? blueTint : Colors.white,
                   borderRadius: BorderRadius.circular(8),
-                  onTap: () => _openConversation(peer),
-                  onLongPress: () => _androidDeviceActions(peer),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 16,
-                    ),
-                    child: Row(
-                      children: [
-                        _conversationAvatar(peer, active: active),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                  child: InkWell(
+                    key: ValueKey('conversation-${peer.id}'),
+                    borderRadius: BorderRadius.circular(8),
+                    onTap: () => _openConversation(peer),
+                    onLongPress: () => _androidDeviceActions(peer),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 16,
+                      ),
+                      child: Row(
+                        children: [
+                          _conversationAvatar(peer, active: active),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  peer.displayName,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 5),
+                                Text(
+                                  draft.isNotEmpty
+                                      ? '草稿 · $draft'
+                                      : summary.preview,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: draft.isNotEmpty ? blue : muted,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
-                              Text(
-                                peer.displayName,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w600,
+                              if (summary.time != null) ...[
+                                Text(
+                                  dayLabel(summary.time!) == '今天'
+                                      ? timeLabel(summary.time!)
+                                      : dayLabel(summary.time!),
+                                  key: ValueKey('conversation-time-${peer.id}'),
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: muted,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(height: 5),
-                              Text(
-                                draft.isNotEmpty
-                                    ? '草稿 · $draft'
-                                    : summary.preview,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: draft.isNotEmpty ? blue : muted,
+                                const SizedBox(height: 8),
+                              ],
+                              if (count > 0)
+                                _badge(count)
+                              else
+                                Icon(
+                                  peer.online
+                                      ? LucideIcons.circleCheck
+                                      : LucideIcons.circle,
+                                  size: 18,
+                                  color: peer.online ? green : muted,
+                                  semanticLabel: peer.online ? '在线' : '离线',
                                 ),
-                              ),
                             ],
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            if (summary.time != null) ...[
-                              Text(
-                                dayLabel(summary.time!) == '今天'
-                                    ? timeLabel(summary.time!)
-                                    : dayLabel(summary.time!),
-                                key: ValueKey('conversation-time-${peer.id}'),
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  color: muted,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                            ],
-                            if (count > 0)
-                              _badge(count)
-                            else
-                              Icon(
-                                peer.online
-                                    ? LucideIcons.circleCheck
-                                    : LucideIcons.circle,
-                                size: 18,
-                                color: peer.online ? green : muted,
-                                semanticLabel: peer.online ? '在线' : '离线',
-                              ),
-                          ],
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
+                radius: 8,
               );
             },
           ),
@@ -1315,7 +1319,7 @@ extension _AndroidWorkspace on _WorkspaceState {
               const SizedBox(width: 8),
               Flexible(
                 child: Text(
-                  '邻传 NearLink · 0.3.2',
+                  '邻传 NearLink · 0.3.3',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ),
