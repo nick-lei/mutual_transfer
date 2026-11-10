@@ -194,6 +194,71 @@ void main() {
     ),
   );
 
+  for (final width in [1440.0, 1000.0, 440.0]) {
+    testWidgets(
+      'Send lists groups alongside devices without a picker at $width',
+      (tester) async {
+        final service = UiFixtureService(populated: false);
+        final group = service.addGroupFixture();
+        if (width == 440) group.name = '产品设计与跨端文件交付协作群聊';
+        final inactive = LanGroup(
+          id: '00000000000000000000000000000001',
+          name: '已退出的群聊',
+          ownerId: service.id,
+          members: group.members.toList(),
+          left: true,
+        );
+        service.groups[inactive.id] = inactive;
+        final file = await forwardFileFixture(tester, service);
+        await show(
+          tester,
+          service,
+          size: Size(width, 920),
+          textScale: width == 440 ? 1.3 : 1,
+        );
+        dropPaths(tester.widget<DropTarget>(find.byType(DropTarget)), [
+          file.savedPath!,
+        ]);
+        await flushForwarding(tester);
+        final row = find.byKey(ValueKey('recipient-${group.conversationId}'));
+        await tester.ensureVisible(row);
+        await tester.tap(row);
+        await tester.pump();
+        expect(find.byType(Dialog), findsNothing);
+        expect(find.byTooltip('选择群组'), findsNothing);
+        expect(
+          find.byKey(ValueKey('recipient-${inactive.conversationId}')),
+          findsNothing,
+        );
+        expect(
+          find.descendant(of: row, matching: find.text('群聊 · 3 位成员 · 3 人在线')),
+          findsOneWidget,
+        );
+        final send = find.byKey(const ValueKey('send-files'));
+        await tester.ensureVisible(send);
+        expect(tester.widget<FilledButton>(send).onPressed, isNotNull);
+        expect(find.text('发送给 ${group.name}'), findsOneWidget);
+        await capture(tester, 'send-inline-groups-${width.toInt()}');
+        final device = find.byKey(const ValueKey('recipient-laptop'));
+        await tester.ensureVisible(device);
+        await tester.tap(device);
+        await tester.pump();
+        expect(find.text('发送给 小林的笔记本'), findsOneWidget);
+        await tester.ensureVisible(row);
+        await tester.tap(row);
+        group.dissolved = true;
+        service.emit();
+        await tester.pump();
+        expect(row, findsNothing);
+        expect(tester.widget<FilledButton>(send).onPressed, isNull);
+        expect(find.byTooltip('清空待发送队列'), findsOneWidget);
+        expect(service.sentBatches, isEmpty);
+        expect(tester.takeException(), isNull);
+        await finish(tester, service);
+      },
+    );
+  }
+
   testWidgets(
     'Explorer chat drop sends files and folders inline and preserves drafts',
     (tester) async {

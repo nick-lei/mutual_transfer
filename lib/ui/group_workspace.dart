@@ -123,54 +123,15 @@ extension _GroupWorkspace on _WorkspaceState {
     }
   }
 
-  Future<void> _pickGroupRecipient() async {
-    final groups = service.groups.values
-        .where((g) => g.activeFor(service.id) && g.members.length > 1)
-        .toList();
-    final selected = await showDialog<String>(
-      context: context,
-      builder: (dialogContext) => SimpleDialog(
-        title: Row(
-          children: [
-            const Expanded(child: Text('发送到群组')),
-            IconButton(
-              tooltip: '新建群组',
-              onPressed: () => Navigator.pop(dialogContext, 'new'),
-              icon: const Icon(LucideIcons.userPlus, size: 20),
-            ),
-          ],
-        ),
-        children: [
-          if (groups.isEmpty)
-            const Padding(
-              padding: EdgeInsets.all(24),
-              child: Text('还没有可用群组', style: TextStyle(color: muted)),
-            ),
-          for (final group in groups)
-            SimpleDialogOption(
-              onPressed: () =>
-                  Navigator.pop(dialogContext, group.conversationId),
-              child: ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: _groupAvatar(),
-                title: Text(
-                  group.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                subtitle: Text(_groupStatus(group)),
-              ),
-            ),
-        ],
-      ),
-    );
-    if (!mounted || selected == null) return;
-    if (selected == 'new') {
-      await _editGroup(null, true);
-      return;
-    }
-    _selectSendRecipient(selected);
-  }
+  List<Peer> get _sendGroupPeers =>
+      service.groups.values
+          .where(
+            (group) => group.activeFor(service.id) && group.members.length > 1,
+          )
+          .map(_groupPeer)
+          .whereType<Peer>()
+          .toList()
+        ..sort((a, b) => a.displayName.compareTo(b.displayName));
 
   Future<bool> _confirmGroupAction(LanGroup group) async =>
       await showDialog<bool>(

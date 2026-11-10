@@ -460,6 +460,7 @@ extension _AndroidWorkspace on _WorkspaceState {
 
   Widget _androidSendPage() {
     final peers = online..sort(_androidComparePeers);
+    final recipients = [...peers, ..._sendGroupPeers];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -547,17 +548,15 @@ extension _AndroidWorkspace on _WorkspaceState {
         _androidSection(
           '发送给',
           action: IconButton(
-            tooltip: '选择群组',
-            onPressed: _pickGroupRecipient,
-            icon: const Icon(LucideIcons.usersRound, size: 20),
+            tooltip: '新建群组',
+            onPressed: () => _editGroup(null, true),
+            icon: const Icon(LucideIcons.userPlus, size: 20),
           ),
         ),
-        if (recipient != null && !service.peers.containsKey(recipient!.id))
-          _androidPeerRow(recipient!, select: true),
-        if (peers.isEmpty)
+        if (recipients.isEmpty)
           _androidEmptyDevices()
         else
-          ...peers.map((peer) => _androidPeerRow(peer, select: true)),
+          ...recipients.map((peer) => _androidPeerRow(peer, select: true)),
         if (activeCount > 0) ...[
           _androidSection(
             '正在传输',
@@ -672,6 +671,7 @@ extension _AndroidWorkspace on _WorkspaceState {
 
   Widget _androidPeerRow(Peer peer, {bool select = false}) {
     final selected = select && _sendPeerId == peer.id;
+    final group = service.groupForConversation(peer.id);
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Material(
@@ -679,6 +679,7 @@ extension _AndroidWorkspace on _WorkspaceState {
         borderRadius: BorderRadius.circular(8),
         child: ListTile(
           key: ValueKey('android-peer-${peer.id}'),
+          selected: selected,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 12,
@@ -695,8 +696,8 @@ extension _AndroidWorkspace on _WorkspaceState {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                peer.platform == 'Group'
-                    ? '局域网群组'
+                group != null
+                    ? '群聊 · ${_groupStatus(group)}'
                     : '${peer.remark.isNotEmpty ? '${peer.name} · ' : ''}${peer.platform}',
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
@@ -745,7 +746,7 @@ extension _AndroidWorkspace on _WorkspaceState {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    recipient?.displayName ?? '请选择接收设备',
+                    recipient?.displayName ?? '请选择接收方',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(fontWeight: FontWeight.w600),
@@ -1319,7 +1320,7 @@ extension _AndroidWorkspace on _WorkspaceState {
               const SizedBox(width: 8),
               Flexible(
                 child: Text(
-                  '邻传 NearLink · 0.3.4',
+                  '邻传 NearLink · 0.3.5',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ),

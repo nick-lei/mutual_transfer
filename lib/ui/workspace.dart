@@ -1364,145 +1364,141 @@ class _WorkspaceState extends State<Workspace> {
     ),
   );
 
-  Widget _receiverPanel() => ConstrainedBox(
-    constraints: const BoxConstraints(minHeight: 330),
-    child: Surface(
-      padding: const EdgeInsets.all(22),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SectionTitle(
-            '发送给谁',
-            count: online.length,
-            action: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  tooltip: '选择群组',
-                  onPressed: _pickGroupRecipient,
-                  icon: const Icon(LucideIcons.users, size: 17),
-                ),
-                IconButton(
-                  tooltip: '刷新附近设备',
-                  onPressed: service.refresh,
-                  icon: const Icon(LucideIcons.refreshCw, size: 17),
-                ),
-              ],
-            ),
-          ),
-          if (service.groupForConversation(_sendPeerId) case final group?)
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: _groupAvatar(),
-              title: Text(
-                group.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              subtitle: Text('${group.members.length} 位成员 · 逐人确认接收'),
-              trailing: IconButton(
-                tooltip: '取消选择群组',
-                onPressed: () => setState(() => _sendPeerId = null),
-                icon: const Icon(LucideIcons.x, size: 16),
+  Widget _receiverPanel() {
+    final peers = [...online, ..._sendGroupPeers];
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 330),
+      child: Surface(
+        padding: const EdgeInsets.all(22),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SectionTitle(
+              '发送给谁',
+              count: peers.length,
+              action: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    tooltip: '新建群组',
+                    onPressed: () => _editGroup(null, true),
+                    icon: const Icon(LucideIcons.userPlus, size: 17),
+                  ),
+                  IconButton(
+                    tooltip: '刷新附近设备',
+                    onPressed: service.refresh,
+                    icon: const Icon(LucideIcons.refreshCw, size: 17),
+                  ),
+                ],
               ),
             ),
-          if (online.isEmpty) ...[
-            const SizedBox(height: 16),
-            const Icon(LucideIcons.radar, size: 30, color: blue),
-            const SizedBox(height: 16),
-            const Text(
-              '还没有发现其他设备',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              '在另一台设备打开邻传，并连接到同一局域网。',
-              style: TextStyle(fontSize: 13, color: muted, height: 1.7),
-            ),
-            const SizedBox(height: 18),
-          ] else
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 216),
-              child: ListView.separated(
-                shrinkWrap: true,
-                itemCount: online.length,
-                separatorBuilder: (_, i) => const SizedBox(height: 6),
-                itemBuilder: (context, i) {
-                  final peer = online[i];
-                  final selected = _sendPeerId == peer.id;
-                  return Semantics(
-                    selected: selected,
-                    button: true,
-                    child: Material(
-                      color: selected ? blueTint : Colors.transparent,
-                      borderRadius: BorderRadius.circular(12),
-                      child: InkWell(
-                        key: ValueKey('recipient-${peer.id}'),
+            if (peers.isEmpty) ...[
+              const SizedBox(height: 16),
+              const Icon(LucideIcons.radar, size: 30, color: blue),
+              const SizedBox(height: 16),
+              const Text(
+                '还没有发现其他设备',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                '在另一台设备打开邻传，并连接到同一局域网。',
+                style: TextStyle(fontSize: 13, color: muted, height: 1.7),
+              ),
+              const SizedBox(height: 18),
+            ] else
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 216),
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: peers.length,
+                  separatorBuilder: (_, i) => const SizedBox(height: 6),
+                  itemBuilder: (context, i) {
+                    final peer = peers[i];
+                    final group = service.groupForConversation(peer.id);
+                    final selected = _sendPeerId == peer.id;
+                    return Semantics(
+                      selected: selected,
+                      button: true,
+                      child: Material(
+                        color: selected ? blueTint : Colors.transparent,
                         borderRadius: BorderRadius.circular(12),
-                        onTap: () => setState(() => _sendPeerId = peer.id),
-                        child: Padding(
-                          padding: const EdgeInsets.all(10),
-                          child: Row(
-                            children: [
-                              DeviceAvatar(
-                                peer.platform,
-                                size: 38,
-                                active: selected,
-                              ),
-                              const SizedBox(width: 11),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      peer.displayName,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600,
-                                        color: selected ? blue : ink,
+                        child: InkWell(
+                          key: ValueKey('recipient-${peer.id}'),
+                          borderRadius: BorderRadius.circular(12),
+                          onTap: () => _selectSendRecipient(peer.id),
+                          child: Padding(
+                            padding: const EdgeInsets.all(10),
+                            child: Row(
+                              children: [
+                                if (group != null)
+                                  _groupAvatar(size: 38)
+                                else
+                                  DeviceAvatar(
+                                    peer.platform,
+                                    size: 38,
+                                    active: selected,
+                                  ),
+                                const SizedBox(width: 11),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        peer.displayName,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                          color: selected ? blue : ink,
+                                        ),
                                       ),
-                                    ),
-                                    Text(
-                                      peer.remark.isEmpty
-                                          ? peer.platform
-                                          : peer.name,
-                                      style: const TextStyle(
-                                        fontSize: 11,
-                                        color: muted,
+                                      Text(
+                                        group != null
+                                            ? '群聊 · ${_groupStatus(group)}'
+                                            : peer.remark.isEmpty
+                                            ? peer.platform
+                                            : peer.name,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          color: muted,
+                                        ),
                                       ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(width: 6),
-                              Icon(
-                                selected
-                                    ? LucideIcons.circleCheck
-                                    : LucideIcons.circle,
-                                size: 18,
-                                color: selected ? blue : muted,
-                              ),
-                            ],
+                                const SizedBox(width: 6),
+                                Icon(
+                                  selected
+                                      ? LucideIcons.circleCheck
+                                      : LucideIcons.circle,
+                                  size: 18,
+                                  color: selected ? blue : muted,
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  );
-                },
+                    );
+                  },
+                ),
               ),
+            const SizedBox(height: 10),
+            TextButton.icon(
+              onPressed: _connectDialog,
+              icon: const Icon(LucideIcons.link, size: 16),
+              label: const Text('找不到？手动连接'),
             ),
-          const SizedBox(height: 10),
-          TextButton.icon(
-            onPressed: _connectDialog,
-            icon: const Icon(LucideIcons.link, size: 16),
-            label: const Text('找不到？手动连接'),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 
   Widget _sendFooter() {
     final peer = recipient;
@@ -1513,7 +1509,7 @@ class _WorkspaceState extends State<Workspace> {
       children: [
         Text(
           _files.isEmpty
-              ? '选好文件，再选一台设备'
+              ? '选好文件，再选接收方'
               : '${_files.length} 个文件 · ${formatBytes(total)}',
           style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
         ),
@@ -2945,7 +2941,7 @@ class _WorkspaceState extends State<Workspace> {
             const Text('让文件和想法，在身边自由流动。', style: TextStyle(fontSize: 14)),
             const SizedBox(height: 8),
             const Text(
-              'Windows · v0.3.4\n明亮外观 · 活力蓝',
+              'Windows · v0.3.5\n明亮外观 · 活力蓝',
               style: TextStyle(fontSize: 12, height: 1.8, color: muted),
             ),
           ],

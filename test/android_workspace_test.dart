@@ -197,7 +197,86 @@ void main() {
     });
   }
 
+  Future<void> flushFiles(WidgetTester tester) async {
+    for (var i = 0; i < 60; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 10)),
+      );
+      await tester.pump(const Duration(milliseconds: 10));
+    }
+  }
+
+  Future<File> pickerFile(WidgetTester tester) async {
+    late Directory directory;
+    late File file;
+    await tester.runAsync(() async {
+      directory = await Directory.systemTemp.createTemp('nearlink-chat-files-');
+      file = await File(
+        '${directory.path}/项目说明.txt',
+      ).writeAsString('chat file fixture');
+    });
+    addTearDown(() => tester.runAsync(() => directory.delete(recursive: true)));
+    pickResult = (call) {
+      expect(call.method, 'any');
+      expect((call.arguments as Map)['allowMultipleSelection'], isTrue);
+      expect((call.arguments as Map)['withData'], isFalse);
+      return [
+        {'name': '项目说明.txt', 'path': file.path, 'size': 17},
+      ];
+    };
+    return file;
+  }
+
   for (final width in [390.0, 320.0]) {
+    testWidgets('Android Send lists groups alongside devices at $width', (
+      tester,
+    ) async {
+      final service = UiFixtureService(populated: false);
+      final group = service.addGroupFixture();
+      if (width == 320) group.name = '产品设计与跨端文件交付协作群聊';
+      final file = await pickerFile(tester);
+      final fixture = await show(
+        tester,
+        fixtureService: service,
+        size: Size(width, 844),
+        scale: width == 320 ? 1.3 : 1,
+      );
+      fixture.host.shared.add(AndroidSharedContent(paths: [file.path]));
+      await flushFiles(tester);
+      final row = find.byKey(ValueKey('android-peer-${group.conversationId}'));
+      await tester.ensureVisible(row);
+      await tester.pumpAndSettle();
+      await tester.tap(row);
+      await tester.pump();
+      expect(tester.widget<ListTile>(row).selected, isTrue);
+      expect(find.byType(Dialog), findsNothing);
+      expect(find.byTooltip('选择群组'), findsNothing);
+      expect(find.text('群聊 · 3 位成员 · 3 人在线'), findsOneWidget);
+      final send = find.byKey(const ValueKey('android-send'));
+      expect(tester.widget<FilledButton>(send).onPressed, isNotNull);
+      if (captureAndroid) {
+        await capture(tester, 'send-inline-groups-${width.toInt()}');
+      }
+      final device = find.byKey(const ValueKey('android-peer-laptop'));
+      await tester.ensureVisible(device);
+      await tester.pumpAndSettle();
+      await tester.tap(device);
+      await tester.pump();
+      expect(tester.widget<ListTile>(device).selected, isTrue);
+      expect(tester.widget<ListTile>(row).selected, isFalse);
+      await tester.ensureVisible(row);
+      await tester.pumpAndSettle();
+      await tester.tap(row);
+      group.left = true;
+      service.emit();
+      await tester.pump();
+      expect(row, findsNothing);
+      expect(tester.widget<FilledButton>(send).onPressed, isNull);
+      expect(find.text('已选 1 个文件'), findsOneWidget);
+      expect(service.sentBatches, isEmpty);
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets(
       'Android conversation presence remains visible with unread at $width',
       (tester) async {
@@ -296,36 +375,6 @@ void main() {
       await tester.pump();
       expect(find.text('暂无记录'), findsOneWidget);
     });
-  }
-
-  Future<void> flushFiles(WidgetTester tester) async {
-    for (var i = 0; i < 60; i++) {
-      await tester.runAsync(
-        () => Future<void>.delayed(const Duration(milliseconds: 10)),
-      );
-      await tester.pump(const Duration(milliseconds: 10));
-    }
-  }
-
-  Future<File> pickerFile(WidgetTester tester) async {
-    late Directory directory;
-    late File file;
-    await tester.runAsync(() async {
-      directory = await Directory.systemTemp.createTemp('nearlink-chat-files-');
-      file = await File(
-        '${directory.path}/项目说明.txt',
-      ).writeAsString('chat file fixture');
-    });
-    addTearDown(() => tester.runAsync(() => directory.delete(recursive: true)));
-    pickResult = (call) {
-      expect(call.method, 'any');
-      expect((call.arguments as Map)['allowMultipleSelection'], isTrue);
-      expect((call.arguments as Map)['withData'], isFalse);
-      return [
-        {'name': '项目说明.txt', 'path': file.path, 'size': 17},
-      ];
-    };
-    return file;
   }
 
   for (final width in [390.0, 320.0]) {
