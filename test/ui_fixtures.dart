@@ -110,6 +110,40 @@ class UiFixtureService extends LanService {
   @override
   bool get running => true;
   void emit() => events.add(null);
+  void addHistoryFixture() {
+    final group = addGroupFixture()..name = '000';
+    peers['studio']!.name = '2407FRK8EC';
+    peers['laptop']!
+      ..name = 'DESKTOP-KEC4I3P'
+      ..remark = '';
+    transfers
+      ..clear()
+      ..addAll([
+        TransferItem(
+          id: 'history-failed',
+          peerId: 'studio',
+          peerName: '2407FRK8EC',
+          groupId: group.id,
+          name: 'NearLink-0.3.6-windows-x64-Setup.exe',
+          size: 13753704,
+          outgoing: true,
+          createdAt: DateTime(2026, 11, 11, 11, 30, 42),
+          status: TransferStatus.failed,
+        )..error = '无法连接该设备，请确认对方已打开邻传且网络可达',
+        TransferItem(
+          id: 'history-complete',
+          peerId: 'laptop',
+          peerName: 'DESKTOP-KEC4I3P',
+          groupId: group.id,
+          name: 'NearLink-0.3.6-windows-x64-Setup.exe',
+          size: 13753704,
+          outgoing: true,
+          createdAt: DateTime(2026, 11, 11, 11, 30, 25),
+          status: TransferStatus.complete,
+        ),
+      ]);
+  }
+
   LanGroup addGroupFixture() {
     peers['laptop']!.remark = '小林的笔记本';
     peers['laptop']!.capabilities = ['lan-groups-v1'];

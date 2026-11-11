@@ -63,6 +63,10 @@ evidence and limits; ../review/android-verification.md retains the initial adapt
 - History: preserve the original individual file cards, spacing and four filters
   (all, active, received, failed). The user explicitly chose this layout over the
   batch expansion redesign on 2026-11-08. Each file stays directly visible with
+  device/group identity and its full local creation timestamp to the second,
+  right-aligned on the same metadata row as file size,
+  which remains visible alongside active transfer speeds. This is record
+  creation time, not completion time. Cards retain
   progress, retry and received file open/share/export commands. Files are initially stored in app-private storage;
   export uses the Android system document picker with no broad storage permission.
 - Settings: local device name and summary entries opening dedicated subpages for

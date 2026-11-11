@@ -1885,7 +1885,9 @@ class _WorkspaceState extends State<Workspace> {
     final items = _filteredTransfers;
     final groups = <String, List<TransferItem>>{};
     for (final item in items) {
-      groups.putIfAbsent(dayLabel(item.createdAt), () => []).add(item);
+      groups
+          .putIfAbsent(dayLabel(item.createdAt.toLocal()), () => [])
+          .add(item);
     }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1989,7 +1991,7 @@ class _WorkspaceState extends State<Workspace> {
             Padding(
               padding: const EdgeInsets.only(bottom: 12),
               child: Text(
-                '${group.key} · ${group.value.length} 个文件',
+                '${group.key == '今天' || group.key == '昨天' ? '${group.key} · ' : ''}${dateLabel(group.value.first.createdAt)} · ${group.value.length} 条记录',
                 style: const TextStyle(
                   fontSize: 13,
                   color: muted,
@@ -1997,135 +1999,196 @@ class _WorkspaceState extends State<Workspace> {
                 ),
               ),
             ),
-            Surface(
-              padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 6),
-              child: Column(children: group.value.map(_transferRow).toList()),
-            ),
+            for (final item in group.value)
+              Container(
+                key: ValueKey('history-record-${item.id}'),
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 18),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: _transferRow(item),
+              ),
             const SizedBox(height: 22),
           ],
       ],
     );
   }
 
-  Widget _transferRow(TransferItem item) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 16),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        FileGlyph(item.name),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                item.name,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                '${item.outgoing ? '发送至' : '来自'} ${service.peers[item.peerId]?.displayName ?? item.peerName}${item.groupId == null ? '' : ' · ${service.groups[item.groupId]?.name ?? '群文件'}'}',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 12, color: muted),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '${formatBytes(item.size)} · ${item.active && item.bytesPerSecond > 0 ? formatBytes(item.bytesPerSecond, speed: true) : timeLabel(item.createdAt)}',
-                style: const TextStyle(
-                  fontFamily: 'Segoe UI',
-                  fontSize: 12,
-                  color: muted,
-                ),
-              ),
-              if (item.active) ...[
-                const SizedBox(height: 12),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(3),
-                  child: LinearProgressIndicator(
-                    value:
-                        item.status == TransferStatus.hashing ||
-                            item.status == TransferStatus.waiting
-                        ? null
-                        : item.progress,
-                    minHeight: 5,
+  String _transferPeerLabel(TransferItem item) =>
+      '${item.outgoing ? '发送至' : '来自'} ${service.peers[item.peerId]?.displayName ?? item.peerName}'
+      '${item.groupId == null ? '' : ' · 群聊 ${service.groups[item.groupId]?.name ?? '群文件'}'}';
+
+  Widget _transferRow(TransferItem item) => LayoutBuilder(
+    builder: (context, box) {
+      final compact = box.maxWidth < 600;
+      final hasError = item.error != null && !item.active;
+      final metadata = Wrap(
+        spacing: 14,
+        runSpacing: 4,
+        children: [
+          Text(
+            formatBytes(item.size),
+            style: const TextStyle(fontSize: 12, color: muted, height: 1.5),
+          ),
+          if (item.active && item.bytesPerSecond > 0)
+            Text(
+              formatBytes(item.bytesPerSecond, speed: true),
+              style: const TextStyle(fontSize: 12, color: blue, height: 1.5),
+            ),
+        ],
+      );
+      final status = StatusPill(
+        item.statusLabel,
+        dot: false,
+        color: item.status == TransferStatus.complete
+            ? green
+            : item.active
+            ? blue
+            : item.status == TransferStatus.failed
+            ? danger
+            : amber,
+      );
+      Widget? action;
+      if (item.active &&
+          (item.outgoing || item.status != TransferStatus.waiting)) {
+        action = IconButton(
+          tooltip: item.outgoing ? '取消本批传输' : '取消接收',
+          onPressed: () => service.cancel(item),
+          icon: const Icon(LucideIcons.x, size: 17),
+        );
+      } else if (item.status == TransferStatus.complete &&
+          !item.outgoing &&
+          item.savedPath != null) {
+        action = IconButton(
+          tooltip: '打开所在目录',
+          onPressed: () => _openFolder(p.dirname(item.savedPath!)),
+          icon: const Icon(LucideIcons.folderOpen, size: 18),
+        );
+      } else if (item.outgoing &&
+          !item.active &&
+          item.status != TransferStatus.complete) {
+        action = IconButton(
+          tooltip: '重新发送',
+          onPressed: () => _guard(() => service.retry(item)),
+          icon: const Icon(LucideIcons.rotateCcw, size: 18),
+        );
+      }
+      return Padding(
+        key: ValueKey('transfer-row-${item.id}'),
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                FileGlyph(item.name, size: compact ? 36 : 44),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item.name,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        _transferPeerLabel(item),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 13, color: ink),
+                      ),
+                      if (hasError) ...[const SizedBox(height: 8), metadata],
+                      if (compact) ...[
+                        const SizedBox(height: 8),
+                        Row(children: [status, const Spacer(), ?action]),
+                      ],
+                      if (item.active) ...[
+                        const SizedBox(height: 12),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(3),
+                          child: LinearProgressIndicator(
+                            value:
+                                item.status == TransferStatus.hashing ||
+                                    item.status == TransferStatus.waiting
+                                ? null
+                                : item.progress,
+                            minHeight: 5,
+                          ),
+                        ),
+                        const SizedBox(height: 5),
+                        Text(
+                          item.status == TransferStatus.transferring
+                              ? '${formatBytes(item.bytes)} / ${formatBytes(item.size)}'
+                              : item.statusLabel,
+                          style: const TextStyle(fontSize: 11, color: blue),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
-                const SizedBox(height: 5),
-                Text(
-                  item.status == TransferStatus.transferring
-                      ? '${formatBytes(item.bytes)} / ${formatBytes(item.size)}'
-                      : item.statusLabel,
-                  style: const TextStyle(fontSize: 11, color: blue),
-                ),
+                if (!compact) ...[
+                  const SizedBox(width: 16),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      status,
+                      if (action != null) ...[
+                        const SizedBox(height: 6),
+                        action,
+                      ],
+                    ],
+                  ),
+                ],
               ],
-              if (item.error != null && !item.active)
-                Padding(
-                  padding: const EdgeInsets.only(top: 7),
-                  child: Text(
-                    item.error!,
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 12, color: danger),
+            ),
+            const SizedBox(height: 8),
+            Padding(
+              padding: EdgeInsets.only(left: compact ? 0 : 58),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: hasError
+                        ? Text(
+                            item.error!,
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: danger,
+                              height: 1.5,
+                            ),
+                          )
+                        : metadata,
                   ),
-                ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 12),
-        ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 110),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Tooltip(
-                message: item.statusLabel,
-                child: StatusPill(
-                  item.statusLabel,
-                  dot: false,
-                  color: item.status == TransferStatus.complete
-                      ? green
-                      : item.active
-                      ? blue
-                      : item.status == TransferStatus.failed
-                      ? danger
-                      : amber,
-                ),
+                  const SizedBox(width: 12),
+                  Tooltip(
+                    message: '记录时间',
+                    child: Text(
+                      transferTimestampLabel(item.createdAt),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: muted,
+                        height: 1.5,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 6),
-              if (item.active &&
-                  (item.outgoing || item.status != TransferStatus.waiting))
-                IconButton(
-                  tooltip: item.outgoing ? '取消本批传输' : '取消接收',
-                  onPressed: () => service.cancel(item),
-                  icon: const Icon(LucideIcons.x, size: 17),
-                )
-              else if (item.status == TransferStatus.complete &&
-                  !item.outgoing &&
-                  item.savedPath != null)
-                IconButton(
-                  tooltip: '打开所在目录',
-                  onPressed: () => _openFolder(p.dirname(item.savedPath!)),
-                  icon: const Icon(LucideIcons.folderOpen, size: 18),
-                )
-              else if (item.outgoing &&
-                  !item.active &&
-                  item.status != TransferStatus.complete)
-                IconButton(
-                  tooltip: '重新发送',
-                  onPressed: () => _guard(() => service.retry(item)),
-                  icon: const Icon(LucideIcons.rotateCcw, size: 18),
-                ),
-            ],
-          ),
+            ),
+          ],
         ),
-      ],
-    ),
+      );
+    },
   );
   Widget _chatPage() => LayoutBuilder(
     builder: (context, box) {
@@ -2996,7 +3059,7 @@ class _WorkspaceState extends State<Workspace> {
             const Text('让文件和想法，在身边自由流动。', style: TextStyle(fontSize: 14)),
             const SizedBox(height: 8),
             const Text(
-              'Windows · v0.3.6\n明亮外观 · 活力蓝',
+              'Windows · v0.3.7\n明亮外观 · 活力蓝',
               style: TextStyle(fontSize: 12, height: 1.8, color: muted),
             ),
           ],

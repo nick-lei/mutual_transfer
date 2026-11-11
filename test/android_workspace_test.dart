@@ -1342,6 +1342,106 @@ void main() {
     },
   );
 
+  for (final width in [390.0, 320.0]) {
+    testWidgets(
+      'Android history separates same-name transfers and shows full time at $width',
+      (tester) async {
+        final service = UiFixtureService(populated: false)..addHistoryFixture();
+        await show(
+          tester,
+          fixtureService: service,
+          size: Size(width, 844),
+          scale: width == 320 ? 1.3 : 1,
+        );
+        await tab(tester, '记录');
+        final failed = find.byKey(
+          const ValueKey('android-transfer-history-failed'),
+        );
+        final complete = find.byKey(
+          const ValueKey('android-transfer-history-complete'),
+        );
+        final timestamp = find.descendant(
+          of: failed,
+          matching: find.text('2026-11-11 11:30:42'),
+        );
+        expect(
+          tester.getRect(timestamp).right,
+          closeTo(tester.getRect(failed).right - 14, 1),
+        );
+        final size = find.descendant(
+          of: failed,
+          matching: find.text('13.1 MB'),
+        );
+        expect(
+          tester.getRect(timestamp).top,
+          closeTo(tester.getRect(size).top, 1),
+        );
+        expect(
+          find.descendant(
+            of: failed,
+            matching: find.text('2026-11-11 11:30:42'),
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(
+            of: complete,
+            matching: find.text('2026-11-11 11:30:25'),
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(
+            of: failed,
+            matching: find.text('发送至 2407FRK8EC · 群聊 000'),
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(
+            of: complete,
+            matching: find.text('发送至 DESKTOP-KEC4I3P · 群聊 000'),
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(of: failed, matching: find.text('传输失败')),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(of: complete, matching: find.text('已完成')),
+          findsOneWidget,
+        );
+        expect(
+          tester.getRect(complete).top - tester.getRect(failed).bottom,
+          greaterThanOrEqualTo(8),
+        );
+        await tester.ensureVisible(complete);
+        await tester.pumpAndSettle();
+        if (captureAndroid) {
+          await capture(tester, 'history-distinct-${width.toInt()}');
+        }
+        service.transfers.first
+          ..status = TransferStatus.transferring
+          ..bytesPerSecond = 1024 * 1024;
+        service.emit();
+        await tester.pumpAndSettle();
+        expect(
+          find.descendant(
+            of: failed,
+            matching: find.text('2026-11-11 11:30:42'),
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(of: failed, matching: find.text('1.0 MB/s')),
+          findsOneWidget,
+        );
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
   testWidgets(
     'history keeps individual files visible with the original filters',
     (tester) async {

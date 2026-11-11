@@ -382,6 +382,16 @@ IconData deviceIcon(String platform) => switch (platform.toLowerCase()) {
 };
 String timeLabel(DateTime time) =>
     '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+String dateLabel(DateTime time) {
+  final local = time.toLocal();
+  return '${local.year}-${local.month.toString().padLeft(2, '0')}-${local.day.toString().padLeft(2, '0')}';
+}
+
+String transferTimestampLabel(DateTime time) {
+  final local = time.toLocal();
+  return '${dateLabel(local)} ${timeLabel(local)}:${local.second.toString().padLeft(2, '0')}';
+}
+
 String dayLabel(DateTime time) {
   final now = DateTime.now();
   final days = DateTime(

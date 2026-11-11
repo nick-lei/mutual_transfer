@@ -64,6 +64,10 @@ accepted it, and where a received file is saved.
   is offline. Removed/dissolved group history remains readable. Existing members
   can communicate while the owner is offline, subject to LAN reachability.
 - Device identity, settings, and limited history are persisted by LanService.
+- Transfer history keeps each file/recipient record independently visible, with
+  its device, optional group, result and full local creation timestamp to the
+  second. Active transfer speeds do not replace timestamps. These are record
+  creation times, not completion times; no new timing data is inferred.
 - Offline device cards on Windows and Android show the locally observed last
   online time, with a precise timestamp on hover/long press. Times survive restart;
   legacy records and unseen group members remain unknown until observed online.

@@ -965,6 +965,7 @@ extension _AndroidWorkspace on _WorkspaceState {
   }) => Padding(
     padding: const EdgeInsets.only(bottom: 8),
     child: Material(
+      key: ValueKey('android-transfer-${item.id}'),
       color: Colors.white,
       borderRadius: BorderRadius.circular(8),
       child: InkWell(
@@ -991,8 +992,8 @@ extension _AndroidWorkspace on _WorkspaceState {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '${item.outgoing ? '发送给' : '来自'} ${service.peers[item.peerId]?.displayName ?? item.peerName}',
-                          maxLines: 1,
+                          _transferPeerLabel(item),
+                          maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(color: muted, fontSize: 12),
                         ),
@@ -1041,15 +1042,31 @@ extension _AndroidWorkspace on _WorkspaceState {
                       fontSize: 12,
                     ),
                   ),
+                  if (item.active && item.bytesPerSecond > 0)
+                    Text(
+                      formatBytes(item.bytesPerSecond, speed: true),
+                      style: const TextStyle(color: blue, fontSize: 12),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   Text(
                     formatBytes(item.size),
                     style: const TextStyle(color: muted, fontSize: 12),
                   ),
-                  Text(
-                    item.active && item.bytesPerSecond > 0
-                        ? formatBytes(item.bytesPerSecond, speed: true)
-                        : '${dayLabel(item.createdAt)} ${timeLabel(item.createdAt)}',
-                    style: const TextStyle(color: muted, fontSize: 12),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Tooltip(
+                      message: '记录时间',
+                      child: Text(
+                        transferTimestampLabel(item.createdAt),
+                        textAlign: TextAlign.right,
+                        style: const TextStyle(color: muted, fontSize: 12),
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -1320,7 +1337,7 @@ extension _AndroidWorkspace on _WorkspaceState {
               const SizedBox(width: 8),
               Flexible(
                 child: Text(
-                  '邻传 NearLink · 0.3.6',
+                  '邻传 NearLink · 0.3.7',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ),

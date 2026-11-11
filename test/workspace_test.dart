@@ -1609,6 +1609,137 @@ void main() {
     },
   );
 
+  for (final width in [1440.0, 720.0, 440.0]) {
+    testWidgets(
+      'history separates same-name transfers and shows full time at $width',
+      (tester) async {
+        final service = UiFixtureService(populated: false)..addHistoryFixture();
+        await show(
+          tester,
+          service,
+          size: Size(width, 920),
+          textScale: width == 440 ? 1.3 : 1,
+        );
+        await navigate(tester, 3);
+        final failed = find.byKey(
+          const ValueKey('history-record-history-failed'),
+        );
+        final complete = find.byKey(
+          const ValueKey('history-record-history-complete'),
+        );
+        expect(failed, findsOneWidget);
+        expect(complete, findsOneWidget);
+        final timestamp = find.descendant(
+          of: failed,
+          matching: find.text('2026-11-11 11:30:42'),
+        );
+        expect(
+          tester.getRect(timestamp).right,
+          closeTo(tester.getRect(failed).right - 18, 1),
+        );
+        final error = find.descendant(
+          of: failed,
+          matching: find.text('无法连接该设备，请确认对方已打开邻传且网络可达'),
+        );
+        expect(
+          tester.getRect(timestamp).top,
+          closeTo(tester.getRect(error).top, 1),
+        );
+        final size = find.descendant(
+          of: complete,
+          matching: find.text('13.1 MB'),
+        );
+        final completedTime = find.descendant(
+          of: complete,
+          matching: find.text('2026-11-11 11:30:25'),
+        );
+        expect(
+          tester.getRect(completedTime).top,
+          closeTo(tester.getRect(size).top, 1),
+        );
+        expect(
+          find.descendant(
+            of: failed,
+            matching: find.text('2026-11-11 11:30:42'),
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(
+            of: complete,
+            matching: find.text('2026-11-11 11:30:25'),
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(
+            of: failed,
+            matching: find.text('发送至 2407FRK8EC · 群聊 000'),
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(
+            of: complete,
+            matching: find.text('发送至 DESKTOP-KEC4I3P · 群聊 000'),
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(of: failed, matching: find.text('传输失败')),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(of: complete, matching: find.text('已完成')),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(of: failed, matching: find.byTooltip('重新发送')),
+          findsOneWidget,
+        );
+        expect(
+          tester
+                  .getRect(
+                    find.byKey(const ValueKey('transfer-row-history-complete')),
+                  )
+                  .top -
+              tester
+                  .getRect(
+                    find.byKey(const ValueKey('transfer-row-history-failed')),
+                  )
+                  .bottom,
+          greaterThanOrEqualTo(12),
+        );
+        await tester.ensureVisible(complete);
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+        await capture(tester, 'history-distinct-${width.toInt()}');
+        service.transfers.first
+          ..status = TransferStatus.transferring
+          ..bytesPerSecond = 1024 * 1024;
+        service.emit();
+        await tester.pumpAndSettle();
+        expect(
+          find.descendant(
+            of: failed,
+            matching: find.text('2026-11-11 11:30:42'),
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(of: failed, matching: find.text('1.0 MB/s')),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(of: failed, matching: find.byTooltip('取消本批传输')),
+          findsOneWidget,
+        );
+        expect(tester.takeException(), isNull);
+        await finish(tester, service);
+      },
+    );
+  }
+
   testWidgets(
     'history filters and settings edit work at increased text scale',
     (tester) async {
