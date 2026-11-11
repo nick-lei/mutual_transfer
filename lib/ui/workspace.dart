@@ -1235,17 +1235,19 @@ class _WorkspaceState extends State<Workspace> {
             label: const Text('全部记录'),
           ),
         ),
-        Surface(
-          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 6),
-          child: recent.isEmpty
-              ? const EmptyState(
-                  icon: LucideIcons.arrowLeftRight,
-                  label: '准备好，开始第一次分享',
-                  detail: '发送和接收的进度会出现在这里。',
-                  height: 160,
-                )
-              : Column(children: recent.map(_transferRow).toList()),
-        ),
+        if (recent.isEmpty)
+          const Surface(
+            padding: EdgeInsets.symmetric(horizontal: 22, vertical: 6),
+            child: EmptyState(
+              icon: LucideIcons.arrowLeftRight,
+              label: '准备好，开始第一次分享',
+              detail: '发送和接收的进度会出现在这里。',
+              height: 160,
+            ),
+          )
+        else
+          for (final item in recent)
+            _transferCard(item, key: ValueKey('recent-transfer-${item.id}')),
       ],
     );
   }
@@ -2000,21 +2002,23 @@ class _WorkspaceState extends State<Workspace> {
               ),
             ),
             for (final item in group.value)
-              Container(
-                key: ValueKey('history-record-${item.id}'),
-                margin: const EdgeInsets.only(bottom: 12),
-                padding: const EdgeInsets.symmetric(horizontal: 18),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: _transferRow(item),
-              ),
+              _transferCard(item, key: ValueKey('history-record-${item.id}')),
             const SizedBox(height: 22),
           ],
       ],
     );
   }
+
+  Widget _transferCard(TransferItem item, {required Key key}) => Container(
+    key: key,
+    margin: const EdgeInsets.only(bottom: 12),
+    padding: const EdgeInsets.symmetric(horizontal: 18),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(8),
+    ),
+    child: _transferRow(item),
+  );
 
   String _transferPeerLabel(TransferItem item) =>
       '${item.outgoing ? '发送至' : '来自'} ${service.peers[item.peerId]?.displayName ?? item.peerName}'
@@ -3059,7 +3063,7 @@ class _WorkspaceState extends State<Workspace> {
             const Text('让文件和想法，在身边自由流动。', style: TextStyle(fontSize: 14)),
             const SizedBox(height: 8),
             const Text(
-              'Windows · v0.3.7\n明亮外观 · 活力蓝',
+              'Windows · v0.3.8\n明亮外观 · 活力蓝',
               style: TextStyle(fontSize: 12, height: 1.8, color: muted),
             ),
           ],

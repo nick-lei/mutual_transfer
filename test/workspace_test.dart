@@ -1611,6 +1611,75 @@ void main() {
 
   for (final width in [1440.0, 720.0, 440.0]) {
     testWidgets(
+      'Send activity separates transfers into independent cards at $width',
+      (tester) async {
+        final service = UiFixtureService(populated: false)..addHistoryFixture();
+        await show(
+          tester,
+          service,
+          size: Size(width, 920),
+          textScale: width == 440 ? 1.3 : 1,
+        );
+        final failed = find.byKey(
+          const ValueKey('recent-transfer-history-failed'),
+        );
+        final complete = find.byKey(
+          const ValueKey('recent-transfer-history-complete'),
+        );
+        expect(failed, findsOneWidget);
+        expect(complete, findsOneWidget);
+        expect(
+          tester
+                  .getRect(
+                    find.byKey(const ValueKey('transfer-row-history-complete')),
+                  )
+                  .top -
+              tester
+                  .getRect(
+                    find.byKey(const ValueKey('transfer-row-history-failed')),
+                  )
+                  .bottom,
+          greaterThanOrEqualTo(12),
+        );
+        final timestamp = find.descendant(
+          of: failed,
+          matching: find.text('2026-11-11 11:30:42'),
+        );
+        final error = find.descendant(
+          of: failed,
+          matching: find.text('无法连接该设备，请确认对方已打开邻传且网络可达'),
+        );
+        expect(
+          tester.getRect(timestamp).top,
+          closeTo(tester.getRect(error).top, 1),
+        );
+        expect(
+          tester.getRect(timestamp).right,
+          closeTo(tester.getRect(failed).right - 18, 1),
+        );
+        expect(
+          find.descendant(of: failed, matching: find.byTooltip('重新发送')),
+          findsOneWidget,
+        );
+        await tester.ensureVisible(complete);
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+        await capture(tester, 'send-activity-cards-${width.toInt()}');
+        final allRecords = find.text('全部记录');
+        await tester.ensureVisible(allRecords);
+        await tester.tap(allRecords);
+        await tester.pumpAndSettle();
+        expect(
+          find.byKey(const ValueKey('history-record-history-failed')),
+          findsOneWidget,
+        );
+        await finish(tester, service);
+      },
+    );
+  }
+
+  for (final width in [1440.0, 720.0, 440.0]) {
+    testWidgets(
       'history separates same-name transfers and shows full time at $width',
       (tester) async {
         final service = UiFixtureService(populated: false)..addHistoryFixture();
