@@ -327,13 +327,10 @@ extension _ChatFiles on _WorkspaceState {
         )
         .toList()
       ..sort((a, b) {
-        final aOnline = _forwardTargetOnline(a);
-        final bOnline = _forwardTargetOnline(b);
-        return aOnline == bOnline
-            ? a.displayName.compareTo(b.displayName)
-            : aOnline
-            ? -1
-            : 1;
+        final availability = _comparePeerAvailability(a, b);
+        return availability != 0
+            ? availability
+            : a.displayName.compareTo(b.displayName);
       });
   }
 

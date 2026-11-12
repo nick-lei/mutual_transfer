@@ -64,6 +64,10 @@ accepted it, and where a received file is saved.
   is offline. Removed/dissolved group history remains readable. Existing members
   can communicate while the owner is offline, subject to LAN reachability.
 - Device identity, settings, and limited history are persisted by LanService.
+- Windows and Android device/recipient lists prioritize online devices. Chat
+  conversations prioritize current availability before recent messages/files;
+  groups are available only when active with another member online. Availability
+  changes reorder lists without changing the selected conversation or its draft.
 - Transfer history keeps each file/recipient record independently visible, with
   its device, optional group, result and full local creation timestamp to the
   second. Active transfer speeds do not replace timestamps. These are record

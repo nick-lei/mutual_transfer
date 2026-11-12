@@ -131,7 +131,12 @@ extension _GroupWorkspace on _WorkspaceState {
           .map(_groupPeer)
           .whereType<Peer>()
           .toList()
-        ..sort((a, b) => a.displayName.compareTo(b.displayName));
+        ..sort((a, b) {
+          final availability = _comparePeerAvailability(a, b);
+          return availability != 0
+              ? availability
+              : a.displayName.compareTo(b.displayName);
+        });
 
   Future<bool> _confirmGroupAction(LanGroup group) async =>
       await showDialog<bool>(
@@ -171,6 +176,13 @@ extension _GroupWorkspace on _WorkspaceState {
           final group = service.groups[original.id] ?? original;
           final active = group.activeFor(service.id);
           final owner = group.ownerId == service.id;
+          bool isOnline(GroupMember member) =>
+              member.id == service.id ||
+              service.peers[member.id]?.online == true;
+          final members = [
+            ...group.members.where(isOnline),
+            ...group.members.where((member) => !isOnline(member)),
+          ];
           final files = service.transfers
               .where((f) => f.groupId == group.id)
               .toList();
@@ -280,8 +292,11 @@ extension _GroupWorkspace on _WorkspaceState {
                             ListView(
                               padding: const EdgeInsets.symmetric(vertical: 12),
                               children: [
-                                for (final member in group.members)
+                                for (final member in members)
                                   ListTile(
+                                    key: ValueKey(
+                                      'group-details-member-${member.id}',
+                                    ),
                                     contentPadding: EdgeInsets.zero,
                                     leading: DeviceAvatar(
                                       member.platform,

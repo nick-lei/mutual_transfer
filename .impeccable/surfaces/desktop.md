@@ -61,6 +61,14 @@ preview data belongs only in the test harness.
 
 ## Shared flows and verification boundary
 
+Device and recipient lists put online destinations before offline ones. The
+conversation list sorts by actual availability before message/file recency;
+active groups require another online member to join the online portion. Group
+details put online members first while retaining their original order within
+each state. Presence updates reorder rows without changing the chosen chat,
+drafts, unread state or stored membership order. Forward selectors and group
+editors retain their existing online-first behavior.
+
 Chat attachment controls now send directly in the selected conversation, using
 the native multi-file picker. They preserve text drafts and the independent Send
 queue. Text and local transfers share the chronological timeline; incoming white

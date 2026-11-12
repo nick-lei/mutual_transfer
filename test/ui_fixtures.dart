@@ -110,6 +110,50 @@ class UiFixtureService extends LanService {
   @override
   bool get running => true;
   void emit() => events.add(null);
+  ({LanGroup onlineGroup, LanGroup offlineGroup}) addPeerOrderingFixture() {
+    final onlineGroup = addGroupFixture()..name = '在线协作';
+    peers['laptop']!
+      ..name = 'B 在线设备'
+      ..remark = '';
+    peers['studio']!
+      ..name = 'A 离线设备'
+      ..online = false;
+    peers['home']!
+      ..name = 'C 在线新设备'
+      ..online = true;
+    final offlineGroup = LanGroup(
+      id: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      name: '离线协作',
+      ownerId: id,
+      members: [
+        onlineGroup.members.first,
+        GroupMember.fromPeer(peers['studio']!),
+      ],
+    );
+    groups[offlineGroup.id] = offlineGroup;
+    transfers.clear();
+    messages
+      ..clear()
+      ..addAll([
+        for (final (peerId, groupId, minute) in [
+          ('laptop', null, 1),
+          ('studio', null, 4),
+          ('laptop', onlineGroup.id, 2),
+          ('studio', offlineGroup.id, 5),
+        ])
+          ChatMessage(
+            id: 'peer-order-$minute',
+            peerId: peerId,
+            groupId: groupId,
+            text: '排序验证消息',
+            time: DateTime(2026, 11, 12, 12, minute),
+            outgoing: true,
+            delivery: 'delivered',
+          ),
+      ]);
+    return (onlineGroup: onlineGroup, offlineGroup: offlineGroup);
+  }
+
   void addHistoryFixture() {
     final group = addGroupFixture()..name = '000';
     peers['studio']!.name = '2407FRK8EC';

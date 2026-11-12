@@ -427,6 +427,168 @@ void main() {
     },
   );
 
+  for (final width in [1440.0, 720.0]) {
+    testWidgets(
+      'online-first conversations reorder without losing chat at $width',
+      (tester) async {
+        final service = UiFixtureService(populated: false);
+        final groups = service.addPeerOrderingFixture();
+        await show(tester, service, size: Size(width, 920));
+        await navigate(tester, 2);
+        void expectOrder(List<String> ids) {
+          for (var i = 1; i < ids.length; i++) {
+            expect(
+              tester
+                  .getTopLeft(
+                    find.byKey(ValueKey('conversation-${ids[i - 1]}')),
+                  )
+                  .dy,
+              lessThan(
+                tester
+                    .getTopLeft(find.byKey(ValueKey('conversation-${ids[i]}')))
+                    .dy,
+              ),
+            );
+          }
+        }
+
+        expectOrder([
+          groups.onlineGroup.conversationId,
+          'laptop',
+          'home',
+          groups.offlineGroup.conversationId,
+          'studio',
+        ]);
+        await capture(tester, 'online-first-messages-${width.toInt()}');
+        service.messages.add(
+          ChatMessage(
+            id: 'offline-latest',
+            peerId: 'studio',
+            text: '离线设备的新历史消息',
+            outgoing: false,
+            time: DateTime(2026, 11, 12, 12, 6),
+          ),
+        );
+        service.emit();
+        await tester.pumpAndSettle();
+        expectOrder([
+          groups.onlineGroup.conversationId,
+          'laptop',
+          'home',
+          'studio',
+          groups.offlineGroup.conversationId,
+        ]);
+        expect(service.unreadFor('studio'), 1);
+        service.peers['studio']!.online = true;
+        service.peers['laptop']!.online = false;
+        service.emit();
+        await tester.pumpAndSettle();
+        expectOrder([
+          'studio',
+          groups.offlineGroup.conversationId,
+          groups.onlineGroup.conversationId,
+          'home',
+          'laptop',
+        ]);
+        groups.onlineGroup.dissolved = true;
+        groups.offlineGroup.left = true;
+        service.emit();
+        await tester.pumpAndSettle();
+        expectOrder([
+          'studio',
+          'home',
+          groups.offlineGroup.conversationId,
+          groups.onlineGroup.conversationId,
+          'laptop',
+        ]);
+        await tester.tap(find.byKey(const ValueKey('conversation-studio')));
+        await tester.pumpAndSettle();
+        await tester.enterText(
+          find.byKey(const ValueKey('message-input')),
+          '保留当前草稿',
+        );
+        service.peers['studio']!.online = false;
+        service.emit();
+        await tester.pumpAndSettle();
+        expect(find.byKey(const ValueKey('chat-drop-studio')), findsOneWidget);
+        expect(find.text('保留当前草稿'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+        await finish(tester, service);
+      },
+    );
+  }
+
+  testWidgets(
+    'online-first order also applies to recipients devices and group members',
+    (tester) async {
+      final service = UiFixtureService(populated: false);
+      final groups = service.addPeerOrderingFixture();
+      groups.onlineGroup.name = 'Z 在线协作';
+      groups.offlineGroup.name = 'A 离线协作';
+      await show(tester, service);
+      expect(
+        tester
+            .getTopLeft(
+              find.byKey(
+                ValueKey('recipient-${groups.onlineGroup.conversationId}'),
+              ),
+            )
+            .dy,
+        lessThan(
+          tester
+              .getTopLeft(
+                find.byKey(
+                  ValueKey('recipient-${groups.offlineGroup.conversationId}'),
+                ),
+              )
+              .dy,
+        ),
+      );
+      await navigate(tester, 1);
+      final offline = tester.getTopLeft(find.text('A 离线设备'));
+      for (final name in ['B 在线设备', 'C 在线新设备']) {
+        final position = tester.getTopLeft(find.text(name));
+        expect(
+          position.dy < offline.dy ||
+              (position.dy == offline.dy && position.dx < offline.dx),
+          isTrue,
+        );
+      }
+      await navigate(tester, 2);
+      await tester.tap(
+        find.byKey(
+          ValueKey('conversation-${groups.onlineGroup.conversationId}'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('群组详情'));
+      await tester.pumpAndSettle();
+      final originalIds = groups.onlineGroup.members
+          .map((member) => member.id)
+          .toList();
+      final laptop = find.byKey(const ValueKey('group-details-member-laptop'));
+      final studio = find.byKey(const ValueKey('group-details-member-studio'));
+      expect(
+        tester.getTopLeft(laptop).dy,
+        lessThan(tester.getTopLeft(studio).dy),
+      );
+      service.peers['laptop']!.online = false;
+      service.peers['studio']!.online = true;
+      service.emit();
+      await tester.pumpAndSettle();
+      expect(
+        tester.getTopLeft(studio).dy,
+        lessThan(tester.getTopLeft(laptop).dy),
+      );
+      expect(
+        groups.onlineGroup.members.map((member) => member.id),
+        orderedEquals(originalIds),
+      );
+      expect(tester.takeException(), isNull);
+      await finish(tester, service);
+    },
+  );
+
   for (final width in [1440.0, 1040.0, 720.0]) {
     testWidgets(
       'conversation presence stays visible with previews and unread at $width',

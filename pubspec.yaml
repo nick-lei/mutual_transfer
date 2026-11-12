@@ -1,7 +1,7 @@
 name: mutual_transfer
 description: NearLink local network file and message transfer for Windows and Android.
 publish_to: none
-version: 0.3.8+23
+version: 0.3.9+24
 
 environment:
   sdk: ^3.12.2

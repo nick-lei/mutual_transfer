@@ -245,7 +245,8 @@ extension _AndroidWorkspace on _WorkspaceState {
   );
 
   int _androidComparePeers(Peer a, Peer b) {
-    if (a.online != b.online) return a.online ? -1 : 1;
+    final availability = _comparePeerAvailability(a, b);
+    if (availability != 0) return availability;
     DateTime lastUsed(Peer peer) {
       final times = [
         ...service.messages
@@ -1337,7 +1338,7 @@ extension _AndroidWorkspace on _WorkspaceState {
               const SizedBox(width: 8),
               Flexible(
                 child: Text(
-                  '邻传 NearLink · 0.3.8',
+                  '邻传 NearLink · 0.3.9',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ),

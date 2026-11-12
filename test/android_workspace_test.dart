@@ -197,6 +197,134 @@ void main() {
     });
   }
 
+  for (final width in [390.0, 1024.0]) {
+    testWidgets(
+      'Android online-first conversations preserve selection and draft at $width',
+      (tester) async {
+        final service = UiFixtureService(populated: false);
+        final groups = service.addPeerOrderingFixture();
+        await show(tester, fixtureService: service, size: Size(width, 844));
+        if (width >= 840) {
+          await tester.tap(
+            find.descendant(
+              of: find.byType(NavigationRail),
+              matching: find.text('消息'),
+            ),
+          );
+          await tester.pumpAndSettle();
+        } else {
+          await tab(tester, '消息');
+        }
+        void expectOrder(List<String> ids) {
+          for (var i = 1; i < ids.length; i++) {
+            expect(
+              tester
+                  .getTopLeft(
+                    find.byKey(ValueKey('conversation-${ids[i - 1]}')),
+                  )
+                  .dy,
+              lessThan(
+                tester
+                    .getTopLeft(find.byKey(ValueKey('conversation-${ids[i]}')))
+                    .dy,
+              ),
+            );
+          }
+        }
+
+        expectOrder([
+          groups.onlineGroup.conversationId,
+          'laptop',
+          'home',
+          groups.offlineGroup.conversationId,
+          'studio',
+        ]);
+        if (captureAndroid) {
+          await capture(tester, 'online-first-messages-${width.toInt()}');
+        }
+        service.peers['laptop']!.online = false;
+        service.peers['studio']!.online = true;
+        service.emit();
+        await tester.pumpAndSettle();
+        expectOrder([
+          groups.offlineGroup.conversationId,
+          'studio',
+          groups.onlineGroup.conversationId,
+          'home',
+          'laptop',
+        ]);
+        groups.onlineGroup.dissolved = true;
+        groups.offlineGroup.left = true;
+        service.emit();
+        await tester.pumpAndSettle();
+        expectOrder([
+          'studio',
+          'home',
+          groups.offlineGroup.conversationId,
+          groups.onlineGroup.conversationId,
+          'laptop',
+        ]);
+        await tester.tap(find.byKey(const ValueKey('conversation-studio')));
+        await tester.pumpAndSettle();
+        await tester.enterText(
+          find.byKey(const ValueKey('message-input')),
+          '保留手机草稿',
+        );
+        service.peers['studio']!.online = false;
+        service.emit();
+        await tester.pumpAndSettle();
+        expect(
+          tester
+              .widget<TextField>(find.byKey(const ValueKey('message-input')))
+              .decoration
+              ?.hintText,
+          '设备离线，在线后可发送',
+        );
+        expect(find.text('保留手机草稿'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
+  testWidgets('Android online-first recipients and nearby devices', (
+    tester,
+  ) async {
+    final service = UiFixtureService(populated: false);
+    final groups = service.addPeerOrderingFixture();
+    groups.onlineGroup.name = 'Z 在线协作';
+    groups.offlineGroup.name = 'A 离线协作';
+    await show(tester, fixtureService: service);
+    expect(
+      tester
+          .getTopLeft(
+            find.byKey(
+              ValueKey('android-peer-${groups.onlineGroup.conversationId}'),
+            ),
+          )
+          .dy,
+      lessThan(
+        tester
+            .getTopLeft(
+              find.byKey(
+                ValueKey('android-peer-${groups.offlineGroup.conversationId}'),
+              ),
+            )
+            .dy,
+      ),
+    );
+    await tab(tester, '设备');
+    final offline = tester
+        .getTopLeft(find.byKey(const ValueKey('android-peer-studio')))
+        .dy;
+    for (final id in ['laptop', 'home']) {
+      expect(
+        tester.getTopLeft(find.byKey(ValueKey('android-peer-$id'))).dy,
+        lessThan(offline),
+      );
+    }
+    expect(tester.takeException(), isNull);
+  });
+
   Future<void> flushFiles(WidgetTester tester) async {
     for (var i = 0; i < 60; i++) {
       await tester.runAsync(

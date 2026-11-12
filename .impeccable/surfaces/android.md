@@ -37,6 +37,12 @@ evidence and limits; ../review/android-verification.md retains the initial adapt
 
 ## Pages and Flows
 
+Device, recipient and conversation lists prioritize online destinations. Shared
+conversation sorting uses availability before recent message/file time, and a
+group requires another online member to rank with online devices. Live presence
+updates retain the selected conversation and text draft. Group member details
+also put online members first without changing stored membership order.
+
 - Send: compact file/media picker, a selected-file summary opening the complete
   removable queue, and staged shared text, recipient
   selection, explicit send command, current/recent progress. No desktop drag copy.

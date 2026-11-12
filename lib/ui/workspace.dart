@@ -97,6 +97,16 @@ class _WorkspaceState extends State<Workspace> {
   LanService get service => widget.service;
   List<Peer> get online =>
       service.peers.values.where((peer) => peer.online).toList();
+  int _comparePeerAvailability(Peer a, Peer b) {
+    final aOnline = _forwardTargetOnline(a);
+    final bOnline = _forwardTargetOnline(b);
+    return aOnline == bOnline
+        ? 0
+        : aOnline
+        ? -1
+        : 1;
+  }
+
   Peer? get recipient =>
       service.peers[_sendPeerId] ??
       _groupPeer(service.groupForConversation(_sendPeerId));
@@ -1629,13 +1639,10 @@ class _WorkspaceState extends State<Workspace> {
                       peer.address.contains(query)),
             )
             .toList()
-          ..sort(
-            (a, b) => a.online == b.online
-                ? a.name.compareTo(b.name)
-                : a.online
-                ? -1
-                : 1,
-          );
+          ..sort((a, b) {
+            final availability = _comparePeerAvailability(a, b);
+            return availability != 0 ? availability : a.name.compareTo(b.name);
+          });
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -2204,16 +2211,14 @@ class _WorkspaceState extends State<Workspace> {
             ...service.peers.values,
             ...service.groups.values.map(_groupPeer).whereType<Peer>(),
           ]..sort((a, b) {
+            final availability = _comparePeerAvailability(a, b);
+            if (availability != 0) return availability;
             final aTime = _conversationSummary(a).time;
             final bTime = _conversationSummary(b).time;
             if (aTime != null && bTime != null) return bTime.compareTo(aTime);
             if (aTime != null) return -1;
             if (bTime != null) return 1;
-            return a.online == b.online
-                ? a.name.compareTo(b.name)
-                : a.online
-                ? -1
-                : 1;
+            return a.name.compareTo(b.name);
           });
       return Padding(
         padding: widget.android != null
@@ -3063,7 +3068,7 @@ class _WorkspaceState extends State<Workspace> {
             const Text('让文件和想法，在身边自由流动。', style: TextStyle(fontSize: 14)),
             const SizedBox(height: 8),
             const Text(
-              'Windows · v0.3.8\n明亮外观 · 活力蓝',
+              'Windows · v0.3.9\n明亮外观 · 活力蓝',
               style: TextStyle(fontSize: 12, height: 1.8, color: muted),
             ),
           ],
