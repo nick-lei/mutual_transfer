@@ -61,6 +61,17 @@ preview data belongs only in the test harness.
 
 ## Shared flows and verification boundary
 
+Home activity and History share selectable file cards. Single-click selection
+uses the existing blue tint and a 1 px blue outline without resizing the card;
+Ctrl+C copies the local file through the Windows file clipboard, and Escape
+clears selection. A right-click selects the card and opens a white menu with a
+Lucide Copy icon, Copy label and shortcut hint. Sent records use their original
+local source (including rejected sends); receives require a completed saved
+file. Missing files and unfinished receives disable the menu command. Existing
+toast feedback reports success/failure. Copy bindings are scoped to card focus,
+preserving ordinary copying in search and other text fields. Selection is single,
+and Android retains its existing touch interactions.
+
 Device and recipient lists put online destinations before offline ones. The
 conversation list sorts by actual availability before message/file recency;
 active groups require another online member to join the online portion. Group

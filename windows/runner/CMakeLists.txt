@@ -8,6 +8,7 @@ project(runner LANGUAGES CXX)
 # Any new source files that you add to the application should be added here.
 add_executable(${BINARY_NAME} WIN32
   "flutter_window.cpp"
+  "file_clipboard.cpp"
   "screenshot_bridge.cpp"
   "tray_inbox.cpp"
   "main.cpp"
@@ -45,3 +46,17 @@ target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
 
 # Run the Flutter tool portions of the build. This must not be removed.
 add_dependencies(${BINARY_NAME} flutter_assemble)
+
+# Built explicitly for verification; never installed in the application bundle.
+add_executable(nearlink_file_clipboard_test EXCLUDE_FROM_ALL
+  "../tests/file_clipboard_test.cpp"
+  "file_clipboard.cpp"
+)
+apply_standard_settings(nearlink_file_clipboard_test)
+target_compile_definitions(nearlink_file_clipboard_test PRIVATE NOMINMAX)
+target_compile_options(nearlink_file_clipboard_test PRIVATE /utf-8)
+target_include_directories(nearlink_file_clipboard_test PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+target_link_libraries(nearlink_file_clipboard_test PRIVATE user32 shell32)
+set_target_properties(nearlink_file_clipboard_test PROPERTIES
+  RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/clipboard_tests/$<CONFIG>"
+)

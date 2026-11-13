@@ -1,11 +1,13 @@
 #include "flutter_window.h"
 
 #include <optional>
+#include <exception>
 #include <flutter/standard_method_codec.h>
 #include <winrt/Windows.UI.Notifications.h>
 #include <mmsystem.h>
 
 #include "flutter/generated_plugin_registrant.h"
+#include "file_clipboard.h"
 
 FlutterWindow::FlutterWindow(const flutter::DartProject& project)
     : project_(project) {}
@@ -36,6 +38,48 @@ bool FlutterWindow::OnCreate() {
         std::make_unique<flutter::EncodableValue>(id));
   }, [this]() { lifecycle_channel_->InvokeMethod("markMessagesRead", nullptr); });
   lifecycle_channel_->SetMethodCallHandler([this](const auto& call, auto result) {
+    if (call.method_name() == "copyFilesToClipboard") {
+      const auto* args = std::get_if<flutter::EncodableMap>(call.arguments());
+      const auto paths = args ? args->find(flutter::EncodableValue("paths"))
+                              : flutter::EncodableMap::const_iterator{};
+      if (!args || paths == args->end() ||
+          !std::holds_alternative<flutter::EncodableList>(paths->second)) {
+        result->Error("invalid_paths", "File paths are required");
+        return;
+      }
+      std::vector<std::wstring> files;
+      try {
+        for (const auto& value : std::get<flutter::EncodableList>(paths->second)) {
+          const auto* path = std::get_if<std::string>(&value);
+          if (!path || path->find('\0') != std::string::npos) {
+            result->Error("invalid_paths", "File paths must be valid strings");
+            return;
+          }
+          files.emplace_back(winrt::to_hstring(*path).c_str());
+        }
+        switch (CopyFilesToClipboard(GetHandle(), files)) {
+          case FileClipboardResult::success:
+            result->Success();
+            break;
+          case FileClipboardResult::invalid_paths:
+            result->Error("invalid_paths", "File paths are invalid");
+            break;
+          case FileClipboardResult::file_unavailable:
+            result->Error("file_unavailable", "The file is unavailable");
+            break;
+          case FileClipboardResult::clipboard_busy:
+            result->Error("clipboard_busy", "The clipboard is busy");
+            break;
+          default:
+            result->Error("clipboard_error", "Could not copy files");
+        }
+      } catch (const std::exception&) {
+        result->Error("invalid_paths", "File paths are invalid");
+      } catch (const winrt::hresult_error&) {
+        result->Error("invalid_paths", "File paths are invalid");
+      }
+      return;
+    }
     if (call.method_name() == "playMessageSound") {
       if (!PlaySoundW(L"SystemNotification", nullptr, SND_ALIAS | SND_ASYNC | SND_NODEFAULT)) {
         result->Error("sound_unavailable", "Windows notification sound is unavailable");

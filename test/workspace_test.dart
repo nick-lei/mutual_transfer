@@ -11,6 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:mutual_transfer/lan_service.dart';
 import 'package:mutual_transfer/desktop/desktop_controller.dart';
+import 'package:mutual_transfer/desktop/file_clipboard.dart';
 import 'package:mutual_transfer/main.dart';
 import 'package:mutual_transfer/models.dart';
 import 'package:mutual_transfer/ui/desktop_title_bar.dart';
@@ -1770,6 +1771,236 @@ void main() {
       directory.deleteSync(recursive: true);
     },
   );
+
+  for (final page in [0, 3]) {
+    for (final width in [1440.0, 440.0]) {
+      testWidgets(
+        'transfer file cards copy by keyboard and context menu on page $page at $width',
+        (tester) async {
+          final previousShadows = debugDisableShadows;
+          debugDisableShadows = false;
+          addTearDown(() => debugDisableShadows = previousShadows);
+          final service = UiFixtureService(populated: false);
+          final received = await forwardFileFixture(tester, service);
+          late File source;
+          await tester.runAsync(() async {
+            source = await File(
+              p.join(p.dirname(received.savedPath!), '发送原件.txt'),
+            ).writeAsString('outgoing file');
+          });
+          service.transfers.add(
+            TransferItem(
+              id: 'copy-outgoing',
+              peerId: 'studio',
+              peerName: '设计工作站',
+              name: '发送原件.txt',
+              size: 13,
+              outgoing: true,
+              status: page == 0
+                  ? TransferStatus.complete
+                  : TransferStatus.rejected,
+              sourcePath: source.path,
+            ),
+          );
+          final copied = <String>[];
+          final messenger =
+              TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+          messenger.setMockMethodCallHandler(WindowsFileClipboard.channel, (
+            call,
+          ) async {
+            if (call.method == 'copyFilesToClipboard') {
+              copied.add(
+                ((call.arguments as Map)['paths'] as List).single as String,
+              );
+            }
+            return null;
+          });
+          addTearDown(
+            () => messenger.setMockMethodCallHandler(
+              WindowsFileClipboard.channel,
+              null,
+            ),
+          );
+          await show(tester, service, size: Size(width, 920));
+          if (page != 0) {
+            await navigate(tester, page);
+          }
+          Finder card(String id) => find.byKey(
+            ValueKey('${page == 0 ? 'recent-transfer' : 'history-record'}-$id'),
+          );
+          Future<void> flushCopy() async {
+            await tester.runAsync(
+              () => Future<void>.delayed(const Duration(milliseconds: 30)),
+            );
+            await tester.pumpAndSettle();
+          }
+
+          Future<void> copyKeys() async {
+            await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+            await tester.sendKeyEvent(LogicalKeyboardKey.keyC);
+            await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+            await flushCopy();
+          }
+
+          await tester.ensureVisible(card(received.id));
+          await tester.tap(
+            find.descendant(
+              of: card(received.id),
+              matching: find.text(received.name),
+            ),
+          );
+          await tester.pump();
+          final before = tester.getSize(card(received.id));
+          await copyKeys();
+          expect(copied, [p.normalize(received.savedPath!)]);
+          expect(tester.getSize(card(received.id)), before);
+          await capture(tester, 'file-copy-selected-$page-${width.toInt()}');
+          await tester.ensureVisible(card('copy-outgoing'));
+          await tester.tap(
+            find.descendant(
+              of: card('copy-outgoing'),
+              matching: find.text('发送原件.txt'),
+            ),
+          );
+          await tester.pump();
+          await copyKeys();
+          expect(copied.last, p.normalize(source.path));
+          final rightClick = await tester.startGesture(
+            tester.getCenter(
+              find.descendant(
+                of: card('copy-outgoing'),
+                matching: find.text('发送原件.txt'),
+              ),
+            ),
+            kind: PointerDeviceKind.mouse,
+            buttons: kSecondaryMouseButton,
+          );
+          await rightClick.up();
+          await flushCopy();
+          final copyMenu = find.byKey(const ValueKey('copy-transfer-file'));
+          expect(tester.widget<PopupMenuItem<bool>>(copyMenu).enabled, isTrue);
+          await capture(tester, 'file-copy-menu-$page-${width.toInt()}');
+          await tester.tap(copyMenu);
+          await flushCopy();
+          expect(copied, [
+            p.normalize(received.savedPath!),
+            p.normalize(source.path),
+            p.normalize(source.path),
+          ]);
+          await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+          await tester.pump();
+          await copyKeys();
+          expect(copied, hasLength(3));
+          if (page == 3) {
+            final search = find.widgetWithText(TextField, '搜索文件或设备');
+            await tester.ensureVisible(search);
+            await tester.enterText(search, '项目');
+            final input = tester.widget<TextField>(search);
+            input.controller!.selection = const TextSelection(
+              baseOffset: 0,
+              extentOffset: 2,
+            );
+            await copyKeys();
+            expect(copied, hasLength(3));
+          }
+          expect(tester.takeException(), isNull);
+          debugDisableShadows = previousShadows;
+          await finish(tester, service);
+        },
+      );
+    }
+  }
+
+  testWidgets('transfer file copy prevents missing and unfinished files', (
+    tester,
+  ) async {
+    final service = UiFixtureService(populated: false);
+    final file = await forwardFileFixture(tester, service);
+    var writes = 0;
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    messenger.setMockMethodCallHandler(WindowsFileClipboard.channel, (
+      call,
+    ) async {
+      if (call.method == 'copyFilesToClipboard') writes++;
+      return null;
+    });
+    addTearDown(
+      () => messenger.setMockMethodCallHandler(
+        WindowsFileClipboard.channel,
+        null,
+      ),
+    );
+    await show(tester, service);
+    final card = find.byKey(ValueKey('recent-transfer-${file.id}'));
+    await tester.ensureVisible(card);
+    await tester.tap(find.text(file.name));
+    await tester.pump();
+    await tester.runAsync(() => File(file.savedPath!).delete());
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyC);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 30)),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('文件已被移动或删除，无法复制'), findsOneWidget);
+    final rightClick = await tester.startGesture(
+      tester.getCenter(find.text(file.name)),
+      kind: PointerDeviceKind.mouse,
+      buttons: kSecondaryMouseButton,
+    );
+    await rightClick.up();
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 30)),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      tester
+          .widget<PopupMenuItem<bool>>(
+            find.byKey(const ValueKey('copy-transfer-file')),
+          )
+          .enabled,
+      isFalse,
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    await tester.runAsync(
+      () => File(file.savedPath!).writeAsString('incomplete receive fixture'),
+    );
+    file.status = TransferStatus.transferring;
+    service.emit();
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(file.name));
+    await tester.pump();
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyC);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pumpAndSettle();
+    final unfinishedMenu = await tester.startGesture(
+      tester.getCenter(find.text(file.name)),
+      kind: PointerDeviceKind.mouse,
+      buttons: kSecondaryMouseButton,
+    );
+    await unfinishedMenu.up();
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 30)),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      tester
+          .widget<PopupMenuItem<bool>>(
+            find.byKey(const ValueKey('copy-transfer-file')),
+          )
+          .enabled,
+      isFalse,
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(writes, 0);
+    expect(tester.takeException(), isNull);
+    await finish(tester, service);
+  });
 
   for (final width in [1440.0, 720.0, 440.0]) {
     testWidgets(

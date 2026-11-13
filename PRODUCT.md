@@ -72,6 +72,12 @@ accepted it, and where a received file is saved.
   its device, optional group, result and full local creation timestamp to the
   second. Active transfer speeds do not replace timestamps. These are record
   creation times, not completion times; no new timing data is inferred.
+- Windows Home activity and History file cards support single selection,
+  Ctrl+C and a right-click Copy command using the system file clipboard. Sent
+  records copy the existing local original, even after rejection; received
+  records require a completed local file. Missing files and incomplete receives
+  cannot be copied. This is file copying, not copying a path as text; text fields
+  retain their normal copy behavior. Multi-selection is not implemented.
 - Offline device cards on Windows and Android show the locally observed last
   online time, with a precise timestamp on hover/long press. Times survive restart;
   legacy records and unseen group members remain unknown until observed online.

@@ -52,7 +52,7 @@ Future<void> main(List<String> args) async {
     'app',
     'launch',
     '邻传启动',
-    fields: {'version': '0.3.9', 'os': Platform.operatingSystemVersion},
+    fields: {'version': '0.3.10', 'os': Platform.operatingSystemVersion},
   );
   final service = LanService(
     dataDirectory: dataDirectory,

@@ -11,6 +11,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:path/path.dart' as p;
 
 import '../desktop/desktop_controller.dart';
+import '../desktop/file_clipboard.dart';
 import '../android/android_host.dart';
 import '../desktop/desktop_settings.dart';
 import '../desktop/desktop_notifications.dart';
@@ -22,6 +23,7 @@ import '../screenshot/screenshot_controller.dart';
 import '../screenshot/screenshot_settings.dart';
 import 'components.dart';
 import 'desktop_title_bar.dart';
+import 'transfer_file_card.dart';
 
 part 'group_workspace.dart';
 part 'android_workspace.dart';
@@ -2016,16 +2018,16 @@ class _WorkspaceState extends State<Workspace> {
     );
   }
 
-  Widget _transferCard(TransferItem item, {required Key key}) => Container(
-    key: key,
-    margin: const EdgeInsets.only(bottom: 12),
-    padding: const EdgeInsets.symmetric(horizontal: 18),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(8),
-    ),
-    child: _transferRow(item),
-  );
+  Widget _transferCard(TransferItem item, {required Key key}) =>
+      TransferFileCard(
+        key: key,
+        filePath: item.outgoing ? item.sourcePath : _forwardFilePath(item),
+        onCopy: (path) => _guard(() async {
+          await WindowsFileClipboard.copyFile(path);
+          if (mounted) _toast('文件已复制');
+        }),
+        child: _transferRow(item),
+      );
 
   String _transferPeerLabel(TransferItem item) =>
       '${item.outgoing ? '发送至' : '来自'} ${service.peers[item.peerId]?.displayName ?? item.peerName}'
@@ -3068,7 +3070,7 @@ class _WorkspaceState extends State<Workspace> {
             const Text('让文件和想法，在身边自由流动。', style: TextStyle(fontSize: 14)),
             const SizedBox(height: 8),
             const Text(
-              'Windows · v0.3.9\n明亮外观 · 活力蓝',
+              'Windows · v0.3.10\n明亮外观 · 活力蓝',
               style: TextStyle(fontSize: 12, height: 1.8, color: muted),
             ),
           ],
