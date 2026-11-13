@@ -24,7 +24,7 @@ class MainActivity : FlutterActivity() {
         bridge.handleIntent(intent)
     }
 
-    @Deprecated("Activity result bridge for the document picker")
+    @Deprecated("Activity result bridge for document and install-permission settings")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         if (!bridge.activityResult(requestCode, resultCode, data)) {
             super.onActivityResult(requestCode, resultCode, data)

@@ -181,8 +181,14 @@ class AndroidHost extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   Future<void> showApp() => channel.invokeMethod<void>('showApp');
-  Future<void> openFile(String path) =>
-      channel.invokeMethod<void>('openFile', {'path': path});
+  Future<void> openFile(String path) async {
+    try {
+      await channel.invokeMethod<void>('openFile', {'path': path});
+    } on PlatformException catch (exception) {
+      throw FormatException(exception.message ?? '文件未能打开，请稍后重试');
+    }
+  }
+
   Future<void> shareFile(String path) =>
       channel.invokeMethod<void>('shareFile', {'path': path});
   Future<bool> exportFile(String path) async =>

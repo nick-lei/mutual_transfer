@@ -11,6 +11,38 @@ void main() {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
   tearDown(() => messenger.setMockMethodCallHandler(channel, null));
 
+  test('opening an APK uses the explicit Android open-file action', () async {
+    final service = UiFixtureService(populated: false);
+    final calls = <MethodCall>[];
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      calls.add(call);
+      return null;
+    });
+    final host = AndroidHost(service, channel: channel);
+    await host.openFile('/private/Received/邻传.APK');
+    expect(calls.single.method, 'openFile');
+    expect(calls.single.arguments, {'path': '/private/Received/邻传.APK'});
+    await host.close();
+    await service.close();
+  });
+
+  test('an install permission error is presented as readable text', () async {
+    final service = UiFixtureService(populated: false);
+    const message = '安装权限未开启，请允许邻传安装未知应用后重试';
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      throw PlatformException(code: 'apk_install_failed', message: message);
+    });
+    final host = AndroidHost(service, channel: channel);
+    await expectLater(
+      host.openFile('/private/Received/update.apk'),
+      throwsA(
+        isA<FormatException>().having((e) => e.message, 'message', message),
+      ),
+    );
+    await host.close();
+    await service.close();
+  });
+
   test('launch notification waits until the workspace is ready', () async {
     final service = UiFixtureService(populated: false);
     final calls = <(String, String)>[];

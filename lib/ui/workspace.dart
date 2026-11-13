@@ -3070,7 +3070,7 @@ class _WorkspaceState extends State<Workspace> {
             const Text('让文件和想法，在身边自由流动。', style: TextStyle(fontSize: 14)),
             const SizedBox(height: 8),
             const Text(
-              'Windows · v0.3.10\n明亮外观 · 活力蓝',
+              'Windows · v0.3.11\n明亮外观 · 活力蓝',
               style: TextStyle(fontSize: 12, height: 1.8, color: muted),
             ),
           ],

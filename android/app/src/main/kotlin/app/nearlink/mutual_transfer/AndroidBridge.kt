@@ -6,6 +6,8 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
+import android.content.ActivityNotFoundException
+import android.content.ClipData
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -44,6 +46,32 @@ class AndroidBridge(private val app: NearLinkApplication, messenger: BinaryMesse
     private var exportSource: File? = null
     private var foreground = true
     private var multicast: WifiManager.MulticastLock? = null
+    private val apkInstaller = ApkInstallFlow(
+        canInstall = { app.packageManager.canRequestPackageInstalls() },
+        requestPermission = {
+            val host = activity ?: error("请返回邻传后打开安装包")
+            try {
+                host.startActivityForResult(
+                    Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${app.packageName}")),
+                    INSTALL_PERMISSION,
+                )
+            } catch (_: ActivityNotFoundException) {
+                error("无法打开授权页面，请在手机设置中允许邻传安装未知应用后重试")
+            }
+        },
+        launchInstaller = { source ->
+            val file = checkedFile(source.path)
+            val uri = FileProvider.getUriForFile(app, "${app.packageName}.files", file)
+            val intent = Intent(Intent.ACTION_VIEW).setDataAndType(uri, "application/vnd.android.package-archive")
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                .apply { clipData = ClipData.newRawUri("APK", uri) }
+            try {
+                openActivity(intent)
+            } catch (_: ActivityNotFoundException) {
+                error("当前手机未提供可用的应用安装器，可将安装包另存到手机后重试")
+            }
+        },
+    )
     var activity: MainActivity? = null
     var activeTransfers = 0
         private set
@@ -116,6 +144,13 @@ class AndroidBridge(private val app: NearLinkApplication, messenger: BinaryMesse
                 }
                 "openFile", "shareFile" -> {
                     val file = checkedFile(call.argument<String>("path")!!)
+                    if (call.method == "openFile" && file.extension.equals("apk", ignoreCase = true)) {
+                        apkInstaller.open(file) { error ->
+                            if (error == null) reply.success(null)
+                            else reply.error("apk_install_failed", error, null)
+                        }
+                        return
+                    }
                     val uri = FileProvider.getUriForFile(app, "${app.packageName}.files", file)
                     val mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(file.extension.lowercase()) ?: "application/octet-stream"
                     val intent = if (call.method == "shareFile") {
@@ -176,6 +211,10 @@ class AndroidBridge(private val app: NearLinkApplication, messenger: BinaryMesse
     }
 
     fun activityResult(code: Int, result: Int, intent: Intent?): Boolean {
+        if (code == INSTALL_PERMISSION) {
+            apkInstaller.permissionReturned()
+            return true
+        }
         if (code != EXPORT) return false
         val reply = exportReply ?: return true
         val source = exportSource
@@ -312,6 +351,7 @@ class AndroidBridge(private val app: NearLinkApplication, messenger: BinaryMesse
     companion object {
         private const val EXPORT = 7302
         private const val NOTIFICATIONS = 7303
+        private const val INSTALL_PERMISSION = 7304
     }
 }
 

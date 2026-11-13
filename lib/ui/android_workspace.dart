@@ -1338,7 +1338,7 @@ extension _AndroidWorkspace on _WorkspaceState {
               const SizedBox(width: 8),
               Flexible(
                 child: Text(
-                  '邻传 NearLink · 0.3.10',
+                  '邻传 NearLink · 0.3.11',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ),

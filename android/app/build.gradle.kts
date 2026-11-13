@@ -43,4 +43,5 @@ flutter {
 
 dependencies {
     implementation("androidx.core:core-ktx:1.16.0")
+    testImplementation("junit:junit:4.13.2")
 }

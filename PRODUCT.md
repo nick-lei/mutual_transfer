@@ -78,6 +78,12 @@ accepted it, and where a received file is saved.
   records require a completed local file. Missing files and incomplete receives
   cannot be copied. This is file copying, not copying a path as text; text fields
   retain their normal copy behavior. Multi-selection is not implemented.
+- Android opens received APK files through the system package installer after
+  an explicit file-open action in chats or History. On Android 8 and later, the
+  first request opens the per-source unknown-app installation settings when
+  required, then rechecks permission and the file before continuing. Denial and
+  unavailable system handlers report readable errors. Receiving or sharing an APK
+  does not start installation; the system still requires installation confirmation.
 - Offline device cards on Windows and Android show the locally observed last
   online time, with a precise timestamp on hover/long press. Times survive restart;
   legacy records and unseen group members remain unknown until observed online.
